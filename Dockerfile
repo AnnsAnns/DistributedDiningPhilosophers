@@ -2,7 +2,7 @@
 FROM rust:latest
 
 # Set the working directory inside the container
-WORKDIR /usr/src/myapp
+WORKDIR /usr/src/vsp
 
 # Copy the current directory contents into the container at /usr/src/myapp
 COPY . .
@@ -11,4 +11,4 @@ COPY . .
 RUN cargo build --release
 
 # Run the Rust program
-CMD ["./target/release/myapp"]
+CMD ["./target/release/vsp"]
