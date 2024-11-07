@@ -1,0 +1,6 @@
+services:
+  hello_world:
+    image: vsp
+    ports:
+      - "5000:5000"
+    container_name: hello_world1
