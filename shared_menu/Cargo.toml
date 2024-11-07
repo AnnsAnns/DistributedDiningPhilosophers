@@ -1,0 +1,8 @@
+[package]
+name = "shared_menu"
+edition = "2021"
+version.workspace = true
+authors.workspace = true
+
+[dependencies]
+serde = { version = "1.0", features = ["derive"] }

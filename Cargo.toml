@@ -1,6 +1,7 @@
-[package]
-name = "vsp"
-version = "0.1.0"
-edition = "2021"
+[workspace]
+members = ["cutlery", "philosopher", "shared_menu", "waiter"]
+resolver = "2"
 
-[dependencies]
+[workspace.package]
+version = "0.0.1"
+authors = ["AnnsAnn"]
