@@ -1,13 +1,13 @@
 use bytes::Bytes;
-use http_body_util::Full;
+use http_body_util::{BodyExt, Full};
 use hyper::server::conn::http1;
 use hyper::service::Service;
-use hyper::Method;
+use hyper::{body, Method};
 use hyper::{body::Incoming as IncomingBody, Request, Response};
 use hyper_util::rt::TokioIo;
 use tokio::net::TcpListener;
 
-use std::future::Future;
+use std::future::{Future, IntoFuture};
 use std::net::SocketAddr;
 use std::pin::Pin;
 use std::sync::{Arc, Mutex};
@@ -57,14 +57,25 @@ impl Service<Request<IncomingBody>> for Svc {
         }
         let res = match (req.method(), req.uri().path()) {
             (&Method::POST, "/register") => {
-                mk_response("registered".into())
+                // Spawn async block to handle the request
+                let restaurant = self.restaurant.clone();
+                let fut = async move {
+                    let body = req.collect().await?.to_bytes();
+                    let node = Node::from_bytes(body);
+                    let mut restaurant = restaurant.lock().unwrap();
+                    match node.ofType {
+                        RegisterType::Philosopher => restaurant.phillosophers.push(node),
+                        RegisterType::Cutlery => restaurant.cutlery.push(node),
+                    }
+                };
+                mk_response("Registered".into())
             },
             (&Method::GET, "/info") => {
                 // Turn restaurant into a byte response
                 let restaurant = self.restaurant.lock().unwrap();
                 let restaurant_copy = restaurant.clone();
-                let restaurant_bytes = bincode::serialize(&restaurant_copy).unwrap();
-                Ok(Response::builder().body(Full::new(Bytes::from(restaurant_bytes))).unwrap())
+                let restaurant_bytes = restaurant_copy.to_bytes();
+                Ok(Response::builder().body(Full::new(restaurant_bytes)).unwrap())
             }
             _ => mk_response("Sorry, we don't serve that here!".into()),
         };

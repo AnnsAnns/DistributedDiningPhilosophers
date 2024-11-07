@@ -425,6 +425,8 @@ dependencies = [
 name = "shared_menu"
 version = "0.0.1"
 dependencies = [
+ "bincode",
+ "bytes",
  "serde",
 ]
 
