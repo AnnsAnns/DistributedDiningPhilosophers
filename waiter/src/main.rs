@@ -14,7 +14,6 @@ use std::sync::{Arc, Mutex};
 
 use shared_menu::*;
 
-
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let addr: SocketAddr = ([127, 0, 0, 1], 3000).into();
@@ -60,7 +59,7 @@ impl Service<Request<IncomingBody>> for Svc {
                 // Spawn async block to handle the request
                 let restaurant = self.restaurant.clone();
                 let fut = async move {
-                    let body = req.collect().await?.to_bytes();
+                    let body = req.collect().await.unwrap().to_bytes();
                     let node = Node::from_bytes(body);
                     let mut restaurant = restaurant.lock().unwrap();
                     match node.ofType {
@@ -68,14 +67,29 @@ impl Service<Request<IncomingBody>> for Svc {
                         RegisterType::Cutlery => restaurant.cutlery.push(node),
                     }
                 };
+
+                let task = tokio::spawn(fut);
+
+                // Await the task and return the response
+                while !task.is_finished() {}
+
                 mk_response("Registered".into())
-            },
+            }
             (&Method::GET, "/info") => {
                 // Turn restaurant into a byte response
                 let restaurant = self.restaurant.lock().unwrap();
                 let restaurant_copy = restaurant.clone();
                 let restaurant_bytes = restaurant_copy.to_bytes();
-                Ok(Response::builder().body(Full::new(restaurant_bytes)).unwrap())
+                Ok(Response::builder()
+                    .body(Full::new(restaurant_bytes))
+                    .unwrap())
+            }
+            (&Method::GET, "/") => {
+                let restraurant_copy = self.restaurant.lock().unwrap().clone();
+                mk_response(format!("The current restaurant has {} philosophers and {} cutlery!\n\n\nHere is the raw:\n\n{:#?}",
+                restraurant_copy.phillosophers.len(),
+                restraurant_copy.cutlery.len(),
+                restraurant_copy))
             }
             _ => mk_response("Sorry, we don't serve that here!".into()),
         };
