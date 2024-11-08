@@ -56,22 +56,22 @@ impl Service<Request<IncomingBody>> for Svc {
         }
         let res = match (req.method(), req.uri().path()) {
             (&Method::POST, "/register") => {
+                println!("Registering a new node!");
+
                 // Spawn async block to handle the request
                 let restaurant = self.restaurant.clone();
-                let fut = async move {
+
+                tokio::task::spawn(async move {
+                    println!("Handling registration request!");
                     let body = req.collect().await.unwrap().to_bytes();
                     let node = Node::from_bytes(body);
                     let mut restaurant = restaurant.lock().unwrap();
+                    println!("Registering node: {:?}", node);
                     match node.ofType {
                         RegisterType::Philosopher => restaurant.phillosophers.push(node),
                         RegisterType::Cutlery => restaurant.cutlery.push(node),
                     }
-                };
-
-                let task = tokio::spawn(fut);
-
-                // Await the task and return the response
-                while !task.is_finished() {}
+                });
 
                 mk_response("Registered".into())
             }

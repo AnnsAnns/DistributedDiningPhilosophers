@@ -16,3 +16,6 @@
 **/*.lb
 **/*.fdb_latexmk
 **/*.synctex.gz
+
+## .env file
+**/.env
