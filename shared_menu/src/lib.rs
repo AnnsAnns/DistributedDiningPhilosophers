@@ -1,4 +1,7 @@
+use core::num;
+
 use bytes::Bytes;
+use rand::Rng;
 
 /// RegisterType is an enum that represents the type of the node that is being registered.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -54,4 +57,57 @@ impl Restaurant {
         let bytes = bincode::serialize(&self).unwrap();
         Bytes::from(bytes)
     }
+}
+
+// Create a random port number between 3000 and 9000
+pub fn random_port() -> u16 {
+    let mut rng = rand::thread_rng();
+    rng.gen_range(3000..9000)
+}
+
+pub fn random_philosopher_name() -> String {
+    let names = vec![
+        "Aristotle",
+        "Plato",
+        "Socrates",
+        "Kant",
+        "Hume",
+        "Locke",
+        "Descartes",
+        "Nietzsche",
+        "Wittgenstein",
+        "Hegel",
+        "Marx",
+        "Russell",
+        "Heidegger",
+        "Kierkegaard",
+        "Sartre",
+        "Camus",
+        "Foucault",
+        "Derrida",
+        "Deleuze",
+        "Zizek",
+    ];
+    let mut rng = rand::thread_rng();
+    let number = rng.gen_range(0..1000);
+    let name = format!("{} {} {}", names[rng.gen_range(0..names.len())], names[rng.gen_range(0..names.len())], number);
+    name.to_string()
+}
+
+pub fn random_cutlery_name() -> String {
+    let names = vec![
+        "Fork",
+        "Spoon",
+        "Knife",
+        "Chopsticks",
+        "Spork",
+        "Splayd",
+        "Trongs",
+        "Chork",
+        "Knork"
+    ];
+    let mut rng = rand::thread_rng();
+    let name = names[rng.gen_range(0..names.len())];
+    let number = rng.gen_range(0..1000);
+    format!("{} {}", name, number).to_string()
 }

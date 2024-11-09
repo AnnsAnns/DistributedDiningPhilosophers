@@ -28,8 +28,8 @@ struct Philosopher {
 async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     dotenv::dotenv().ok();
     let ip = std::env::var("IP").expect("IP must be set");
-    let port = std::env::var("PORT").expect("PORT must be set");
-    let username = std::env::var("USERNAME").expect("USERNAME must be set");
+    let port = random_port();
+    let username = random_philosopher_name();
     let waiter_ip = std::env::var("WAITER_IP").expect("WAITER_IP must be set");
     let waiter_port = std::env::var("WAITER_PORT").expect("WAITER_PORT must be set");
     let wisdom = std::env::var("WISDOM").unwrap_or("The fork is mightier than the spoon.".to_string());
@@ -43,7 +43,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         public_data: Node {
             username: username.clone(),
             IP: ip.clone(),
-            port: port.parse().unwrap(),
+            port: port,
             ofType: RegisterType::Philosopher,
         },
         owned_cutlery: Vec::new(),

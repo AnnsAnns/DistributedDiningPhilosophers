@@ -16,7 +16,11 @@ use shared_menu::*;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-    let addr: SocketAddr = ([172, 18, 0, 2], 3000).into();
+    // Get ip and port from env vars
+    let ip = std::env::var("WAITER_IP").expect("WAITER_IP env var not set!");
+    let port = std::env::var("WAITER_PORT").expect("WAITER_PORT env var not set!");
+
+    let addr = format!("{}:{}", ip, port).parse::<SocketAddr>()?;
 
     let listener = TcpListener::bind(addr).await?;
     println!("Listening on http://{}", addr);
