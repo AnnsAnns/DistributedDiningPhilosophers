@@ -2,13 +2,16 @@
 FROM rust:latest
 
 # Set the working directory inside the container
-WORKDIR /usr/src/vsp
+WORKDIR /usr/src/philosopher
 
 # Copy the current directory contents into the container at /usr/src/myapp
 COPY . .
 
+# Remove the .env file if it exists
+RUN rm .env 
+
 # Build the Rust program
-RUN cargo build --release
+RUN cargo build --release --package philosopher
 
 # Run the Rust program
-CMD ["./target/release/vsp"]
+CMD ["./target/release/philosopher"]
