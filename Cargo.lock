@@ -753,6 +753,18 @@ checksum = "e3148f5046208a5d56bcfc03053e3ca6334e51da8dfb19b6cdc8b306fae3283e"
 [[package]]
 name = "philosopher"
 version = "0.1.0"
+dependencies = [
+ "bincode",
+ "bytes",
+ "dotenv",
+ "http-body-util",
+ "hyper",
+ "hyper-util",
+ "reqwest",
+ "serde",
+ "shared_menu",
+ "tokio",
+]
 
 [[package]]
 name = "pin-project-lite"
