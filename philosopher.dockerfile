@@ -1,17 +1,28 @@
 # Use the official Rust image from the Docker Hub
-FROM rust:latest
+FROM lukemathwalker/cargo-chef:0.1.68-rust-1.82.0 AS chef
+WORKDIR /app
 
 # Set the working directory inside the container
-WORKDIR /usr/src/philosopher
-
-# Copy the current directory contents into the container at /usr/src/myapp
+FROM chef AS planner
 COPY . .
+RUN cargo chef prepare --recipe-path recipe.json
 
-# Remove the .env file if it exists
-RUN rm -f -- .env 
+FROM chef AS builder 
+COPY --from=planner /app/recipe.json recipe.json
+# Build dependencies - this is the caching Docker layer!
+RUN cargo chef cook --recipe-path recipe.json
 
-# Build the Rust program
-RUN cargo build --release --package philosopher
+# Build application
+COPY . .
+RUN cargo build --package philosopher
+
+## Build the final runtime image
+FROM debian:bookworm-slim AS runtime
+RUN apt-get -y update
+RUN apt-get -y install openssl
+
+WORKDIR /app
+COPY --from=builder /app/target/release/philosopher /usr/local/bin
 
 # Run the Rust program
-CMD ["./target/release/philosopher"]
+ENTRYPOINT ["/usr/local/bin/philosopher"]
