@@ -14,15 +14,13 @@ RUN cargo chef cook --recipe-path recipe.json
 
 # Build application
 COPY . .
-RUN cargo build --package waiter
+RUN cargo build
 
-## Build the final runtime image
-FROM debian:bookworm-slim AS runtime
-RUN apt-get -y update
-RUN apt-get -y install openssl
+# Copy built artifacts to a new stage
+FROM rust:1.52.1-slim AS runtime
+
+# Get OpenSSL
+RUN apt-get update && apt-get install -y openssl
 
 WORKDIR /app
-COPY --from=builder /app/target/release/waiter /usr/local/bin
-
-# Run the Rust program
-ENTRYPOINT ["/usr/local/bin/waiter"]
+COPY --from=builder /app/target/debug/ .

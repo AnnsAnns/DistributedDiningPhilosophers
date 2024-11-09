@@ -1,42 +1,41 @@
 services:
+
   cutlery:
-    build:
-      context: .
-      dockerfile: cutlery.dockerfile
+    build: .
     environment:
       IP: "cutlery"
       WAITER_IP: "172.27.0.2"
       WAITER_PORT: "3000"
     ports:
       - "5001:5001"
+    entrypoint: ["./cutlery"]
     container_name: cutlery
     networks: 
       - free_wifi
 
   philosopher:
-    build:
-      context: .
-      dockerfile: philosopher.dockerfile
+    build: .
     environment:
       IP: "philosopher"
       WAITER_IP: "172.27.0.2"
       WAITER_PORT: "3000"
     ports:
       - "5002:5002"
+    entrypoint: ["./philosopher"]
     container_name: philosopher
     networks: 
       - free_wifi
 
   waiter:
-    build:
-      context: .
-      dockerfile: waiter.dockerfile
+    build: .
+    command: ./waiter
     environment:
       IP: "172.27.0.2"
       WAITER_IP: "172.27.0.2"
       WAITER_PORT: "3000"
     ports:
       - "3000:3000"
+    entrypoint: ["./waiter"]
     expose:
       - 3000
     container_name: waiter
