@@ -8,7 +8,7 @@ WORKDIR /usr/src/waiter
 COPY . .
 
 # Remove the .env file if it exists
-RUN rm .env 
+RUN rm -f -- .env 
 
 # Build the Rust program
 RUN cargo build --release --package waiter

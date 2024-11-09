@@ -13,6 +13,7 @@ use std::net::SocketAddr;
 use std::pin::Pin;
 use std::sync::{Arc, Mutex};
 
+use tokio::time::{sleep, Duration};
 use shared_menu::*;
 
 #[derive(Debug, Clone)]
@@ -29,7 +30,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let username = std::env::var("USERNAME").expect("USERNAME must be set");
     let waiter_ip = std::env::var("WAITER_IP").expect("WAITER_IP must be set");
     let waiter_port = std::env::var("WAITER_PORT").expect("WAITER_PORT must be set");
-
     let addr = format!("{}:{}", ip, port);
 
     let listener = TcpListener::bind(addr.clone()).await?;

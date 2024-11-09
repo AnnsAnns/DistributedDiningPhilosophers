@@ -16,7 +16,7 @@ use shared_menu::*;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-    let addr: SocketAddr = ([127, 0, 0, 1], 3000).into();
+    let addr: SocketAddr = ([172, 18, 0, 2], 3000).into();
 
     let listener = TcpListener::bind(addr).await?;
     println!("Listening on http://{}", addr);
