@@ -17,10 +17,7 @@ COPY . .
 RUN cargo build
 
 # Copy built artifacts to a new stage
-FROM rust:1.52.1-slim AS runtime
-
-# Get OpenSSL
-RUN apt-get update && apt-get install -y openssl
+FROM chef as runtime
 
 WORKDIR /app
 COPY --from=builder /app/target/debug/ .
