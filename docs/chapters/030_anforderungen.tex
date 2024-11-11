@@ -1,1 +1,19 @@
 \section{Anforderungen}
+\begin{enumerate}
+    \item Besteck kann nur von einem Philosophen gleichzeitig benutzt werden.
+    \item Es gibt genauso viele Bestecke wie Philosophen.
+    \item Philosophen müssen einzelne Container sein
+    \item Philosophen werden können entweder Essen oder Denken: 
+    \begin{enumerate}
+        \item wenn sie Denken interagieren sie nicht mit anderen Philosophen oder Besteck.
+        \item wenn sie Essen benötigen sie die 2 angrenzenden Bestecke um diese Tätigkeit zu vollführen und legen diese anschließend wieder ab.
+    \end{enumerate}
+    \item Die Performancemessungen sollen mit 5, 10 sowie einer zu ermittelnden maximal Anzahl stattfinden.
+    \item Philosophen dürfen ausschließlich per Nachrichten kommunizieren und ihre Zugriffe sollen verteilt koordiniert werden.
+    \item Zur verteilten Koordination soll eine eigene Lösung für RPC genutzt werden und keine Bibliothek.
+    \item Die eigene RPC Lösung muss mit Tests abgesichert werden.
+\end{enumerate}
+
+
+\subsection{Offene Fragen}
+- wie sollen die Zeitspannen in den Zuständen aussehen: feste Zeitspannen, zufällig?
