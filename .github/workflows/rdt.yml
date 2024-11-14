@@ -7,7 +7,7 @@ on:
       - dev
       - main
     paths:
-      - 'docs/rdt/**'
+      - 'docs/**'
       - '.github/workflows/rdt.yml'
 
 jobs:
