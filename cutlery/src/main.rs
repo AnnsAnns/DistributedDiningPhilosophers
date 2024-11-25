@@ -1,13 +1,15 @@
-use bytes::Bytes;
+use bytes::{Bytes, BytesMut};
 use http_body_util::{BodyExt, Full};
 use hyper::server::conn::http1;
 use hyper::service::Service;
 use hyper::{body, Method};
 use hyper::{body::Incoming as IncomingBody, Request, Response};
 use hyper_util::rt::TokioIo;
-use tokio::net::TcpListener;
+use tokio::io::{AsyncReadExt, AsyncWriteExt, BufReader, BufWriter};
+use tokio::net::{TcpListener, TcpStream};
 
 use std::borrow::Borrow;
+use std::error::Error;
 use std::future::{Future, IntoFuture};
 use std::net::SocketAddr;
 use std::pin::Pin;
@@ -47,15 +49,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
 
     // Register with the waiter at the specified IP and port /register
     let waiter_addr = format!("{}:{}", waiter_ip, waiter_port);
-    let waiter_addr = format!("http://{}/register", waiter_addr);
-    let client = reqwest::Client::new();
+    //let waiter_addr = format!("http://{}/register", waiter_addr);
     let body = data.public_data.to_bytes();
+    let mut write_stream = TcpStream::connect(&waiter_addr).await?;
     println!("Registering with the waiter at: {}", waiter_addr);
-    let res = client
-        .post(&waiter_addr)
-        .body(body)
-        .send()
-        .await?;
+    let (_, writer) = write_stream.split();
+    //let mut reader = BufReader::new(reader);
+    let mut writer = BufWriter::new(writer);
+    let res = writer.write_all(b"squeeeeek").await;
+    writer.flush().await?;
     println!("Registered with the waiter: {:?}", res);
 
     let svc = Svc {
@@ -64,14 +66,21 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
 
     loop {
         let (stream, _) = listener.accept().await?;
-        let io = TokioIo::new(stream);
+        //let io = TokioIo::new(stream);
         let svc_clone = svc.clone();
         tokio::task::spawn(async move {
-            if let Err(err) = http1::Builder::new().serve_connection(io, svc_clone).await {
+            if let Err(err) = handle_request(svc_clone, stream).await {
                 println!("Failed to serve connection: {:?}", err);
             }
         });
     }
+}
+
+async fn handle_request(service: Svc, mut stream: TcpStream) -> Result<(), Box<dyn Error>>{
+    let mut input = BytesMut::with_capacity(1024);
+    stream.read(&mut input).await.unwrap();
+    print!("{:?}",input);
+    return Ok(());
 }
 
 #[derive(Debug, Clone)]

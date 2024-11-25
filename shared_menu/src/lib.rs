@@ -3,6 +3,21 @@ use core::num;
 use bytes::Bytes;
 use rand::Rng;
 
+///enum containing all waiter functions callable using rpc
+pub enum WaiterCalls {
+    Register(String, String, u16, RegisterType),
+    Info,
+    Status,
+}
+///enum containing all cutlery functions callable using rpc
+pub enum CutleryCalls {
+    Status,
+}
+///enum containing all philosoph functions callable using rpc
+pub enum PhilosophCalls {
+    Status,
+}
+
 /// RegisterType is an enum that represents the type of the node that is being registered.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub enum RegisterType {

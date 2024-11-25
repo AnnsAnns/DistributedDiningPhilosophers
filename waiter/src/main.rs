@@ -1,12 +1,15 @@
-use bytes::Bytes;
+use bytes::{Bytes, BytesMut};
 use http_body_util::{BodyExt, Full};
 use hyper::server::conn::http1;
 use hyper::service::Service;
 use hyper::{body, Method};
 use hyper::{body::Incoming as IncomingBody, Request, Response};
 use hyper_util::rt::TokioIo;
-use tokio::net::TcpListener;
+use tokio::io::{self, AsyncBufReadExt, AsyncReadExt, BufReader};
+use tokio::io::AsyncWriteExt;
+use tokio::net::{TcpListener, TcpStream};
 
+use std::error::Error;
 use std::future::{Future, IntoFuture};
 use std::net::SocketAddr;
 use std::pin::Pin;
@@ -23,7 +26,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let addr = format!("{}:{}", ip, port).parse::<SocketAddr>()?;
 
     let listener = TcpListener::bind(addr).await?;
-    println!("Listening on http://{}", addr);
+    println!("Listening on {}", addr);
 
     let svc = Svc {
         restaurant: Arc::new(Mutex::new(Restaurant {
@@ -33,15 +36,37 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     };
 
     loop {
-        let (stream, _) = listener.accept().await?;
-        let io = TokioIo::new(stream);
+        let (mut stream, _) = listener.accept().await?;
+        //let io = TokioIo::new(stream);
         let svc_clone = svc.clone();
         tokio::task::spawn(async move {
-            if let Err(err) = http1::Builder::new().serve_connection(io, svc_clone).await {
+            if let Err(err) = handle_request(svc_clone, stream).await {
                 println!("Failed to serve connection: {:?}", err);
             }
         });
     }
+}
+
+async fn handle_request(service: Svc, mut stream: TcpStream) -> Result<(), Box<dyn Error>>{
+    let (reader, writer) = stream.split();
+    let mut reader = BufReader::new(reader);
+    //let mut writer = BufWriter::new(writer);
+
+    let mut incoming_msg= vec![0;1024];
+    stream.readable().await?;
+    print!("yay");
+    match stream.try_read(&mut incoming_msg) {
+        Ok(n) => {
+            incoming_msg.truncate(n);
+        }
+        Err(ref e) if e.kind() == io::ErrorKind::WouldBlock => {
+        }
+        Err(e) => {
+            return Err(e.into());
+        }
+    }
+    print!("{}",String::from_utf8(incoming_msg)?);
+    return Ok(());
 }
 
 #[derive(Debug, Clone)]

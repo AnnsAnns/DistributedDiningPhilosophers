@@ -1,13 +1,16 @@
-use bytes::Bytes;
+use bytes::{Bytes, BytesMut};
 use http_body_util::{BodyExt, Full};
 use hyper::server::conn::http1;
 use hyper::service::Service;
 use hyper::{body, Method};
 use hyper::{body::Incoming as IncomingBody, Request, Response};
 use hyper_util::rt::TokioIo;
+use tokio::io::{AsyncReadExt, AsyncWriteExt, BufWriter};
 use tokio::net::TcpListener;
+use tokio::net::TcpStream;
 
 use std::borrow::Borrow;
+use std::error::Error;
 use std::future::{Future, IntoFuture};
 use std::net::SocketAddr;
 use std::pin::Pin;
@@ -37,7 +40,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let addr = format!("{}:{}", ip, port);
 
     let listener = TcpListener::bind(addr.clone()).await?;
-    println!("Listening on http://{} as {}", addr, username);
+    println!("Listening on {} as {}", addr, username);
 
     let data = Philosopher {
         public_data: Node {
@@ -52,11 +55,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
 
     // Register with the waiter at the specified IP and port /register
     let waiter_addr = format!("{}:{}", waiter_ip, waiter_port);
-    let waiter_addr = format!("http://{}/register", waiter_addr);
-    let client = reqwest::Client::new();
+    //let waiter_addr = format!("http://{}/register", waiter_addr);
     let body = data.public_data.to_bytes();
+    let mut write_stream = TcpStream::connect(&waiter_addr).await?;
     println!("Registering with the waiter at: {}", waiter_addr);
-    let res = client.post(&waiter_addr).body(body).send().await?;
+    let (_, writer) = write_stream.split();
+    //let mut reader = BufReader::new(reader);
+    let mut writer = BufWriter::new(writer);
+    let res = writer.write_all(b"squeeeeek").await;
+    writer.flush().await?;
     println!("Registered with the waiter: {:?}", res);
 
     let svc = Svc {
@@ -65,14 +72,21 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
 
     loop {
         let (stream, _) = listener.accept().await?;
-        let io = TokioIo::new(stream);
+        //let io = TokioIo::new(stream);
         let svc_clone = svc.clone();
         tokio::task::spawn(async move {
-            if let Err(err) = http1::Builder::new().serve_connection(io, svc_clone).await {
+            if let Err(err) = handle_request(svc_clone, stream).await {
                 println!("Failed to serve connection: {:?}", err);
             }
         });
     }
+}
+
+async fn handle_request(service: Svc, mut stream: TcpStream) -> Result<(), Box<dyn Error>>{
+    let mut input = BytesMut::with_capacity(1024);
+    stream.read(&mut input).await.unwrap();
+    print!("{:?}",input);
+    return Ok(());
 }
 
 #[derive(Debug, Clone)]
@@ -80,23 +94,23 @@ struct Svc {
     data: Arc<Mutex<Philosopher>>,
 }
 
-impl Service<Request<IncomingBody>> for Svc {
-    type Response = Response<Full<Bytes>>;
-    type Error = hyper::Error;
-    type Future = Pin<Box<dyn Future<Output = Result<Self::Response, Self::Error>> + Send>>;
-
-    fn call(&self, req: Request<IncomingBody>) -> Self::Future {
-        fn mk_response(s: String) -> Result<Response<Full<Bytes>>, hyper::Error> {
-            Ok(Response::builder().body(Full::new(Bytes::from(s))).unwrap())
-        }
-        let res = match (req.method(), req.uri().path()) {
-            (&Method::GET, "/") => {
-                let data_copy = self.data.lock().unwrap().public_data.clone();
-                mk_response(format!("{:?}", data_copy))
-            }
-            _ => mk_response("The path you seek is not found, much like the meaning of life.".into()),
-        };
-
-        Box::pin(async { res })
-    }
-}
+//impl Service<Request<IncomingBody>> for Svc {
+//    type Response = Response<Full<Bytes>>;
+//    type Error = hyper::Error;
+//    type Future = Pin<Box<dyn Future<Output = Result<Self::Response, Self::Error>> + Send>>;
+//
+//    fn call(&self, req: Request<IncomingBody>) -> Self::Future {
+//        fn mk_response(s: String) -> Result<Response<Full<Bytes>>, hyper::Error> {
+//            Ok(Response::builder().body(Full::new(Bytes::from(s))).unwrap())
+//        }
+//        let res = match (req.method(), req.uri().path()) {
+//            (&Method::GET, "/") => {
+//                let data_copy = self.data.lock().unwrap().public_data.clone();
+//                mk_response(format!("{:?}", data_copy))
+//            }
+//            _ => mk_response("The path you seek is not found, much like the meaning of life.".into()),
+//        };
+//
+//        Box::pin(async { res })
+//    }
+//}
