@@ -1,22 +1,8 @@
-use bytes::{Bytes, BytesMut};
-use http_body_util::{BodyExt, Full};
-use hyper::server::conn::http1;
-use hyper::service::Service;
-use hyper::{body, Method};
-use hyper::{body::Incoming as IncomingBody, Request, Response};
-use hyper_util::rt::TokioIo;
-use tokio::io::{AsyncReadExt, AsyncWriteExt, BufReader, BufWriter};
-use tokio::net::{TcpListener, TcpStream};
-
-use std::borrow::Borrow;
-use std::error::Error;
-use std::future::{Future, IntoFuture};
-use std::net::SocketAddr;
-use std::pin::Pin;
-use std::sync::{Arc, Mutex};
-
-use tokio::time::{sleep, Duration};
 use shared_menu::*;
+use std::error::Error;
+use std::sync::{Arc, Mutex};
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use tokio::net::{TcpListener, TcpStream};
 
 #[derive(Debug, Clone)]
 struct Cutlery {
@@ -35,7 +21,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let addr = format!("{}:{}", ip, port);
 
     let listener = TcpListener::bind(addr.clone()).await?;
-    println!("Listening on http://{} as {}", addr, username);
+    println!("Listening on {} as {}", addr, username);
 
     let data = Cutlery {
         public_data: Node {
@@ -52,7 +38,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let body = data.public_data.to_bytes();
     let mut stream = TcpStream::connect(&waiter_addr).await?;
     println!("Registering with the waiter at: {}", waiter_addr);
-    let result = stream.write_all(&username.clone().into_bytes()).await;
+    let result = stream.write_all(&body).await;
     stream.shutdown().await?;
     println!("Registered with the waiter: {:?}", result);
 
@@ -72,10 +58,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     }
 }
 
-async fn handle_request(mut stream: TcpStream) -> Result<(), Box<dyn Error>>{
-    let mut buf= vec![0;1024];
-    let n = stream.read(&mut buf).await.expect("couldn't read from tcp socket");
-    println!("{}",String::from_utf8(buf).expect("no utf8 for u"));
+async fn handle_request(mut stream: TcpStream) -> Result<(), Box<dyn Error>> {
+    let mut buf = vec![0; 1024];
+    let n = stream
+        .read(&mut buf)
+        .await
+        .expect("couldn't read from tcp socket");
+
     return Ok(());
 }
 
@@ -84,23 +73,23 @@ struct Svc {
     data: Arc<Mutex<Cutlery>>,
 }
 
-impl Service<Request<IncomingBody>> for Svc {
-    type Response = Response<Full<Bytes>>;
-    type Error = hyper::Error;
-    type Future = Pin<Box<dyn Future<Output = Result<Self::Response, Self::Error>> + Send>>;
-
-    fn call(&self, req: Request<IncomingBody>) -> Self::Future {
-        fn mk_response(s: String) -> Result<Response<Full<Bytes>>, hyper::Error> {
-            Ok(Response::builder().body(Full::new(Bytes::from(s))).unwrap())
-        }
-        let res = match (req.method(), req.uri().path()) {
-            (&Method::GET, "/") => {
-                let data_copy = self.data.lock().unwrap().public_data.clone();
-                mk_response(format!("{:?}", data_copy))
-            }
-            _ => mk_response("Sorry, I am only a fork :(".into()),
-        };
-
-        Box::pin(async { res })
-    }
-}
+//impl Service<Request<IncomingBody>> for Svc {
+//    type Response = Response<Full<Bytes>>;
+//    type Error = hyper::Error;
+//    type Future = Pin<Box<dyn Future<Output = Result<Self::Response, Self::Error>> + Send>>;
+//
+//    fn call(&self, req: Request<IncomingBody>) -> Self::Future {
+//        fn mk_response(s: String) -> Result<Response<Full<Bytes>>, hyper::Error> {
+//            Ok(Response::builder().body(Full::new(Bytes::from(s))).unwrap())
+//        }
+//        let res = match (req.method(), req.uri().path()) {
+//            (&Method::GET, "/") => {
+//                let data_copy = self.data.lock().unwrap().public_data.clone();
+//                mk_response(format!("{:?}", data_copy))
+//            }
+//            _ => mk_response("Sorry, I am only a fork :(".into()),
+//        };
+//
+//        Box::pin(async { res })
+//    }
+//}

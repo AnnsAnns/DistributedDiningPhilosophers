@@ -1,23 +1,10 @@
-use bytes::{Bytes, BytesMut};
-use http_body_util::{BodyExt, Full};
-use hyper::server::conn::http1;
-use hyper::service::Service;
-use hyper::{body, Method};
-use hyper::{body::Incoming as IncomingBody, Request, Response};
-use hyper_util::rt::TokioIo;
-use tokio::io::{AsyncReadExt, AsyncWriteExt, BufWriter};
+use std::error::Error;
+use std::sync::{Arc, Mutex};
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpListener;
 use tokio::net::TcpStream;
 
-use std::borrow::Borrow;
-use std::error::Error;
-use std::future::{Future, IntoFuture};
-use std::net::SocketAddr;
-use std::pin::Pin;
-use std::sync::{Arc, Mutex};
-
 use shared_menu::*;
-
 
 #[derive(Debug, Clone)]
 struct Philosopher {
@@ -35,7 +22,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let username = random_philosopher_name();
     let waiter_ip = std::env::var("WAITER_IP").expect("WAITER_IP must be set");
     let waiter_port = std::env::var("WAITER_PORT").expect("WAITER_PORT must be set");
-    let wisdom = std::env::var("WISDOM").unwrap_or("The fork is mightier than the spoon.".to_string());
+    let wisdom =
+        std::env::var("WISDOM").unwrap_or("The fork is mightier than the spoon.".to_string());
 
     let addr = format!("{}:{}", ip, port);
 
@@ -59,7 +47,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
 
     let mut stream = TcpStream::connect(&waiter_addr).await?;
     println!("Registering with the waiter at: {}", waiter_addr);
-    let result = stream.write_all(&username.into_bytes()).await;
+    let result = stream.write_all(&body).await;
     stream.shutdown().await?;
     println!("Registered with the waiter: {:?}", result);
 
@@ -79,10 +67,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     }
 }
 
-async fn handle_request(mut stream: TcpStream) -> Result<(), Box<dyn Error>>{
-    let mut buf= vec![0;1024];
-    let n = stream.read(&mut buf).await.expect("couldn't read from tcp socket");
-    println!("{}",String::from_utf8(buf).expect("no utf8 for u"));
+async fn handle_request(mut stream: TcpStream) -> Result<(), Box<dyn Error>> {
+    let mut buf = vec![0; 1024];
+    let n = stream
+        .read(&mut buf)
+        .await
+        .expect("couldn't read from tcp socket");
+
     return Ok(());
 }
 

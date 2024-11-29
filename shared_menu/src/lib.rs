@@ -35,14 +35,14 @@ pub struct Node {
 }
 
 impl Node {
-    pub fn from_bytes(bytes: Bytes) -> Self {
-        let node: Node = bincode::deserialize(&bytes[..]).unwrap();
+    pub fn from_bytes(bytes: Vec<u8>) -> Self {
+        let node: Node = bincode::deserialize(&bytes).unwrap();
         node
     }
 
-    pub fn to_bytes(&self) -> Bytes {
+    pub fn to_bytes(&self) -> Vec<u8> {
         let bytes = bincode::serialize(&self).unwrap();
-        Bytes::from(bytes)
+        bytes
     }
 }
 
@@ -105,7 +105,12 @@ pub fn random_philosopher_name() -> String {
     ];
     let mut rng = rand::thread_rng();
     let number = rng.gen_range(0..1000);
-    let name = format!("{} {} {}", names[rng.gen_range(0..names.len())], names[rng.gen_range(0..names.len())], number);
+    let name = format!(
+        "{} {} {}",
+        names[rng.gen_range(0..names.len())],
+        names[rng.gen_range(0..names.len())],
+        number
+    );
     name.to_string()
 }
 
@@ -119,7 +124,7 @@ pub fn random_cutlery_name() -> String {
         "Splayd",
         "Trongs",
         "Chork",
-        "Knork"
+        "Knork",
     ];
     let mut rng = rand::thread_rng();
     let name = names[rng.gen_range(0..names.len())];
