@@ -1,7 +1,7 @@
 use std::error::Error;
 use std::net::SocketAddr;
 use std::sync::{Arc, Mutex};
-use tokio::io::AsyncReadExt;
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::{TcpListener, TcpStream};
 
 use shared_menu::*;
@@ -33,7 +33,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
                 println!("Failed to serve connection: {:?}", err);
             }
         });
-        info(svc.clone());
     }
 }
 
@@ -43,8 +42,8 @@ async fn handle_request(service: Svc, mut stream: TcpStream) -> Result<(), Box<d
         .read(&mut buf)
         .await
         .expect("couldn't read from tcp socket");
-    register(service, buf);
-    //println!("{}", String::from_utf8(buf).expect("no utf8 for u"));
+    register(service.clone(), buf);
+    info(service, stream);
     return Ok(());
 }
 
@@ -66,13 +65,14 @@ fn register(service: Svc, buf: Vec<u8>) {
     });
 }
 
-fn info(service: Svc) {
+fn info(service: Svc, mut stream: TcpStream) {
     let restaurant = service.restaurant.clone();
     let restaurant = restaurant.lock().expect("closed");
-    println!(
-        "Aktuell am Tisch:\nPhilosophen: {:?}\nCutlery: {:?}",
-        restaurant.phillosophers, restaurant.cutlery
-    );
+    let restaurant_bytes = restaurant.to_bytes();
+    tokio::task::spawn(async move {
+        let result = stream.write_all(&restaurant_bytes).await;
+        stream.shutdown().await.unwrap();
+    });
 }
 
 #[derive(Debug, Clone)]
