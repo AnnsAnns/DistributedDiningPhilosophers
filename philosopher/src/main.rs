@@ -55,16 +55,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
 
     // Register with the waiter at the specified IP and port /register
     let waiter_addr = format!("{}:{}", waiter_ip, waiter_port);
-    //let waiter_addr = format!("http://{}/register", waiter_addr);
     let body = data.public_data.to_bytes();
-    let mut write_stream = TcpStream::connect(&waiter_addr).await?;
+
+    let mut stream = TcpStream::connect(&waiter_addr).await?;
     println!("Registering with the waiter at: {}", waiter_addr);
-    let (_, writer) = write_stream.split();
-    //let mut reader = BufReader::new(reader);
-    let mut writer = BufWriter::new(writer);
-    let res = writer.write_all(b"squeeeeek").await;
-    writer.flush().await?;
-    println!("Registered with the waiter: {:?}", res);
+    let result = stream.write_all(&username.into_bytes()).await;
+    stream.shutdown().await?;
+    println!("Registered with the waiter: {:?}", result);
 
     let svc = Svc {
         data: Arc::new(Mutex::new(data)),
@@ -75,17 +72,17 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         //let io = TokioIo::new(stream);
         let svc_clone = svc.clone();
         tokio::task::spawn(async move {
-            if let Err(err) = handle_request(svc_clone, stream).await {
+            if let Err(err) = handle_request(stream).await {
                 println!("Failed to serve connection: {:?}", err);
             }
         });
     }
 }
 
-async fn handle_request(service: Svc, mut stream: TcpStream) -> Result<(), Box<dyn Error>>{
-    let mut input = BytesMut::with_capacity(1024);
-    stream.read(&mut input).await.unwrap();
-    print!("{:?}",input);
+async fn handle_request(mut stream: TcpStream) -> Result<(), Box<dyn Error>>{
+    let mut buf= vec![0;1024];
+    let n = stream.read(&mut buf).await.expect("couldn't read from tcp socket");
+    println!("{}",String::from_utf8(buf).expect("no utf8 for u"));
     return Ok(());
 }
 

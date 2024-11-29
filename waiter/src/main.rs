@@ -48,24 +48,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
 }
 
 async fn handle_request(service: Svc, mut stream: TcpStream) -> Result<(), Box<dyn Error>>{
-    let (reader, writer) = stream.split();
-    let mut reader = BufReader::new(reader);
-    //let mut writer = BufWriter::new(writer);
-
-    let mut incoming_msg= vec![0;1024];
-    stream.readable().await?;
-    print!("yay");
-    match stream.try_read(&mut incoming_msg) {
-        Ok(n) => {
-            incoming_msg.truncate(n);
-        }
-        Err(ref e) if e.kind() == io::ErrorKind::WouldBlock => {
-        }
-        Err(e) => {
-            return Err(e.into());
-        }
-    }
-    print!("{}",String::from_utf8(incoming_msg)?);
+    let mut buf= vec![0;1024];
+    let n = stream.read(&mut buf).await.expect("couldn't read from tcp socket");
+    println!("{}",String::from_utf8(buf).expect("no utf8 for u"));
     return Ok(());
 }
 
