@@ -1,16 +1,8 @@
-use bytes::Bytes;
-use http_body_util::{BodyExt, Full};
-use hyper::server::conn::http1;
-use hyper::service::Service;
-use hyper::{body, Method};
-use hyper::{body::Incoming as IncomingBody, Request, Response};
-use hyper_util::rt::TokioIo;
-use tokio::net::TcpListener;
-
-use std::future::{Future, IntoFuture};
+use std::error::Error;
 use std::net::SocketAddr;
-use std::pin::Pin;
 use std::sync::{Arc, Mutex};
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use tokio::net::{TcpListener, TcpStream};
 
 use shared_menu::*;
 
@@ -23,7 +15,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let addr = format!("{}:{}", ip, port).parse::<SocketAddr>()?;
 
     let listener = TcpListener::bind(addr).await?;
-    println!("Listening on http://{}", addr);
+    println!("Listening on {}", addr);
 
     let svc = Svc {
         restaurant: Arc::new(Mutex::new(Restaurant {
@@ -33,15 +25,54 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     };
 
     loop {
-        let (stream, _) = listener.accept().await?;
-        let io = TokioIo::new(stream);
+        let (mut stream, _) = listener.accept().await?;
+        //let io = TokioIo::new(stream);
         let svc_clone = svc.clone();
         tokio::task::spawn(async move {
-            if let Err(err) = http1::Builder::new().serve_connection(io, svc_clone).await {
+            if let Err(err) = handle_request(svc_clone, stream).await {
                 println!("Failed to serve connection: {:?}", err);
             }
         });
     }
+}
+
+async fn handle_request(service: Svc, mut stream: TcpStream) -> Result<(), Box<dyn Error>> {
+    let mut buf = vec![0; 1024];
+    let n = stream
+        .read(&mut buf)
+        .await
+        .expect("couldn't read from tcp socket");
+    register(service.clone(), buf);
+    info(service, stream);
+    return Ok(());
+}
+
+fn register(service: Svc, buf: Vec<u8>) {
+    println!("Registering a new node!");
+
+    // Spawn async block to handle the request
+    let restaurant = service.restaurant.clone();
+
+    tokio::task::spawn(async move {
+        println!("Handling registration request!");
+        let node = Node::from_bytes(buf);
+        let mut restaurant = restaurant.lock().unwrap();
+        println!("Registering node: {:?}", node);
+        match node.ofType {
+            RegisterType::Philosopher => restaurant.phillosophers.push(node),
+            RegisterType::Cutlery => restaurant.cutlery.push(node),
+        }
+    });
+}
+
+fn info(service: Svc, mut stream: TcpStream) {
+    let restaurant = service.restaurant.clone();
+    let restaurant = restaurant.lock().expect("closed");
+    let restaurant_bytes = restaurant.to_bytes();
+    tokio::task::spawn(async move {
+        let result = stream.write_all(&restaurant_bytes).await;
+        stream.shutdown().await.unwrap();
+    });
 }
 
 #[derive(Debug, Clone)]
@@ -49,55 +80,55 @@ struct Svc {
     restaurant: Arc<Mutex<Restaurant>>,
 }
 
-impl Service<Request<IncomingBody>> for Svc {
-    type Response = Response<Full<Bytes>>;
-    type Error = hyper::Error;
-    type Future = Pin<Box<dyn Future<Output = Result<Self::Response, Self::Error>> + Send>>;
-
-    fn call(&self, req: Request<IncomingBody>) -> Self::Future {
-        fn mk_response(s: String) -> Result<Response<Full<Bytes>>, hyper::Error> {
-            Ok(Response::builder().body(Full::new(Bytes::from(s))).unwrap())
-        }
-        let res = match (req.method(), req.uri().path()) {
-            (&Method::POST, "/register") => {
-                println!("Registering a new node!");
-
-                // Spawn async block to handle the request
-                let restaurant = self.restaurant.clone();
-
-                tokio::task::spawn(async move {
-                    println!("Handling registration request!");
-                    let body = req.collect().await.unwrap().to_bytes();
-                    let node = Node::from_bytes(body);
-                    let mut restaurant = restaurant.lock().unwrap();
-                    println!("Registering node: {:?}", node);
-                    match node.ofType {
-                        RegisterType::Philosopher => restaurant.phillosophers.push(node),
-                        RegisterType::Cutlery => restaurant.cutlery.push(node),
-                    }
-                });
-
-                mk_response("Registered".into())
-            }
-            (&Method::GET, "/info") => {
-                // Turn restaurant into a byte response
-                let restaurant = self.restaurant.lock().unwrap();
-                let restaurant_copy = restaurant.clone();
-                let restaurant_bytes = restaurant_copy.to_bytes();
-                Ok(Response::builder()
-                    .body(Full::new(restaurant_bytes))
-                    .unwrap())
-            }
-            (&Method::GET, "/") => {
-                let restraurant_copy = self.restaurant.lock().unwrap().clone();
-                mk_response(format!("The current restaurant has {} philosophers and {} cutlery!\n\n\nHere is the raw:\n\n{:#?}",
-                restraurant_copy.phillosophers.len(),
-                restraurant_copy.cutlery.len(),
-                restraurant_copy))
-            }
-            _ => mk_response("Sorry, we don't serve that here!".into()),
-        };
-
-        Box::pin(async { res })
-    }
-}
+//impl Service<Request<IncomingBody>> for Svc {
+//    type Response = Response<Full<Bytes>>;
+//    type Error = hyper::Error;
+//    type Future = Pin<Box<dyn Future<Output = Result<Self::Response, Self::Error>> + Send>>;
+//
+//    fn call(&self, req: Request<IncomingBody>) -> Self::Future {
+//        fn mk_response(s: String) -> Result<Response<Full<Bytes>>, hyper::Error> {
+//            Ok(Response::builder().body(Full::new(Bytes::from(s))).unwrap())
+//        }
+//        let res = match (req.method(), req.uri().path()) {
+//            (&Method::POST, "/register") => {
+//                println!("Registering a new node!");
+//
+//                // Spawn async block to handle the request
+//                let restaurant = self.restaurant.clone();
+//
+//                tokio::task::spawn(async move {
+//                    println!("Handling registration request!");
+//                    let body = req.collect().await.unwrap().to_bytes();
+//                    let node = Node::from_bytes(body);
+//                    let mut restaurant = restaurant.lock().unwrap();
+//                    println!("Registering node: {:?}", node);
+//                    match node.ofType {
+//                        RegisterType::Philosopher => restaurant.phillosophers.push(node),
+//                        RegisterType::Cutlery => restaurant.cutlery.push(node),
+//                    }
+//                });
+//
+//                mk_response("Registered".into())
+//            }
+//            (&Method::GET, "/info") => {
+//                // Turn restaurant into a byte response
+//                let restaurant = self.restaurant.lock().unwrap();
+//                let restaurant_copy = restaurant.clone();
+//                let restaurant_bytes = restaurant_copy.to_bytes();
+//                Ok(Response::builder()
+//                    .body(Full::new(restaurant_bytes))
+//                    .unwrap())
+//            }
+//            (&Method::GET, "/") => {
+//                let restraurant_copy = self.restaurant.lock().unwrap().clone();
+//                mk_response(format!("The current restaurant has {} philosophers and {} cutlery!\n\n\nHere is the raw:\n\n{:#?}",
+//                restraurant_copy.phillosophers.len(),
+//                restraurant_copy.cutlery.len(),
+//                restraurant_copy))
+//            }
+//            _ => mk_response("Sorry, we don't serve that here!".into()),
+//        };
+//
+//        Box::pin(async { res })
+//    }
+//}

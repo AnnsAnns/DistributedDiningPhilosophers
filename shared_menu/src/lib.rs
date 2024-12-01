@@ -3,6 +3,21 @@ use core::num;
 use bytes::Bytes;
 use rand::Rng;
 
+///enum containing all waiter functions callable using rpc
+pub enum WaiterCalls {
+    Register(String, String, u16, RegisterType),
+    Info,
+    Status,
+}
+///enum containing all cutlery functions callable using rpc
+pub enum CutleryCalls {
+    Status,
+}
+///enum containing all philosoph functions callable using rpc
+pub enum PhilosophCalls {
+    Status,
+}
+
 /// RegisterType is an enum that represents the type of the node that is being registered.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub enum RegisterType {
@@ -20,14 +35,14 @@ pub struct Node {
 }
 
 impl Node {
-    pub fn from_bytes(bytes: Bytes) -> Self {
-        let node: Node = bincode::deserialize(&bytes[..]).unwrap();
+    pub fn from_bytes(bytes: Vec<u8>) -> Self {
+        let node: Node = bincode::deserialize(&bytes).unwrap();
         node
     }
 
-    pub fn to_bytes(&self) -> Bytes {
+    pub fn to_bytes(&self) -> Vec<u8> {
         let bytes = bincode::serialize(&self).unwrap();
-        Bytes::from(bytes)
+        bytes
     }
 }
 
@@ -90,7 +105,12 @@ pub fn random_philosopher_name() -> String {
     ];
     let mut rng = rand::thread_rng();
     let number = rng.gen_range(0..1000);
-    let name = format!("{} {} {}", names[rng.gen_range(0..names.len())], names[rng.gen_range(0..names.len())], number);
+    let name = format!(
+        "{} {} {}",
+        names[rng.gen_range(0..names.len())],
+        names[rng.gen_range(0..names.len())],
+        number
+    );
     name.to_string()
 }
 
@@ -104,7 +124,7 @@ pub fn random_cutlery_name() -> String {
         "Splayd",
         "Trongs",
         "Chork",
-        "Knork"
+        "Knork",
     ];
     let mut rng = rand::thread_rng();
     let name = names[rng.gen_range(0..names.len())];

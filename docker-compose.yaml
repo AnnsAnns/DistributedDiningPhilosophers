@@ -1,6 +1,8 @@
 services:
 
   cutlery:
+    depends_on:
+      - waiter
     build: .
     environment:
       IP: "cutlery"
@@ -16,6 +18,8 @@ services:
       endpoint_mode: dnsrr
 
   philosopher:
+    depends_on:
+      - waiter
     build: .
     environment:
       IP: "philosopher"
