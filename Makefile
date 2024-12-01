@@ -22,3 +22,9 @@ remove_artifacts:
 .PHONY: rebuild
 rebuild:
 	@docker build . -t base
+
+podman_rebuild:
+	@podman build . -t base
+
+podman_compose_build_waiter:
+	@podman-compose up --build waiter

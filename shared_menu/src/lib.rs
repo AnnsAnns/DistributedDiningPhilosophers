@@ -3,6 +3,8 @@ use core::num;
 use bytes::Bytes;
 use rand::Rng;
 
+pub mod calls;
+
 ///enum containing all waiter functions callable using rpc
 pub enum WaiterCalls {
     Register(String, String, u16, RegisterType),

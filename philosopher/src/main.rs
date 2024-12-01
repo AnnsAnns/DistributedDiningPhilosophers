@@ -92,24 +92,3 @@ async fn handle_request(mut stream: TcpStream) -> Result<(), Box<dyn Error>> {
 struct Svc {
     data: Arc<Mutex<Philosopher>>,
 }
-
-//impl Service<Request<IncomingBody>> for Svc {
-//    type Response = Response<Full<Bytes>>;
-//    type Error = hyper::Error;
-//    type Future = Pin<Box<dyn Future<Output = Result<Self::Response, Self::Error>> + Send>>;
-//
-//    fn call(&self, req: Request<IncomingBody>) -> Self::Future {
-//        fn mk_response(s: String) -> Result<Response<Full<Bytes>>, hyper::Error> {
-//            Ok(Response::builder().body(Full::new(Bytes::from(s))).unwrap())
-//        }
-//        let res = match (req.method(), req.uri().path()) {
-//            (&Method::GET, "/") => {
-//                let data_copy = self.data.lock().unwrap().public_data.clone();
-//                mk_response(format!("{:?}", data_copy))
-//            }
-//            _ => mk_response("The path you seek is not found, much like the meaning of life.".into()),
-//        };
-//
-//        Box::pin(async { res })
-//    }
-//}
