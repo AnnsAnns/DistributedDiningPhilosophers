@@ -39,7 +39,7 @@ pub struct Node {
 }
 
 impl Node {
-    pub fn from_bytes(bytes: Vec<u8>) -> OSelf {
+    pub fn from_bytes(bytes: Vec<u8>) -> Self {
         let node: Node = bincode::deserialize(&bytes).unwrap();
         node
     }
