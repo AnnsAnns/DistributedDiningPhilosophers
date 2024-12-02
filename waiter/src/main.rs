@@ -1,4 +1,5 @@
 use calls::{Calls, Response};
+use node::Node;
 use std::error::Error;
 use std::net::SocketAddr;
 use std::sync::{Arc, Mutex};

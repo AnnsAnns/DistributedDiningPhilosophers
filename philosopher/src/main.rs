@@ -1,7 +1,8 @@
+use calls::{Calls, Commands, Response};
+use node::Node;
+use random_names::{random_philosopher_name, random_port};
 use std::error::Error;
 use std::sync::{Arc, Mutex};
-use calls::{Calls, Commands, Response};
-use random_names::{random_philosopher_name, random_port};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpListener;
 use tokio::net::TcpStream;
@@ -60,14 +61,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     };
 
     // Register with the waiter
-    {
-        println!("Registering with the waiter");
-        let own_data = svc.data.lock().unwrap().public_data.to_bytes();
-        let mut waiter = svc.data.lock().unwrap().waiter.to_puppet();
+    println!("Registering with the waiter");
+    let own_data = svc.data.lock().unwrap().public_data.to_bytes();
+    let mut waiter = svc.data.lock().unwrap().waiter.clone();
 
-        let response = waiter.register(own_data.clone()).await;
-        println!("Response from waiter: {:?}", response);
-    }
+    let response = waiter.register(own_data.clone()).await;
+    println!("Response from waiter: {:?}", response);
 
     // Handle incoming connections
     loop {

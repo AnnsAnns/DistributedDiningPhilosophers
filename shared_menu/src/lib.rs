@@ -1,12 +1,10 @@
-use core::num;
-
 use bytes::Bytes;
 
-use puppet::Puppet;
+use node::Node;
 
 pub mod calls;
 pub mod random_names;
-pub mod puppet;
+pub mod node;
 
 pub const COMMAND_LEN: usize = 1024;
 
@@ -31,31 +29,6 @@ pub enum RegisterType {
     Philosopher,
     Cutlery,
     Waiter,
-}
-
-/// Node is a struct that represents a node in the network.
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub struct Node {
-    pub username: String,
-    pub IP: String,
-    pub port: u16,
-    pub ofType: RegisterType,
-}
-
-impl Node {
-    pub fn from_bytes(bytes: Vec<u8>) -> Self {
-        let node: Node = bincode::deserialize(&bytes).unwrap();
-        node
-    }
-
-    pub fn to_bytes(&self) -> Vec<u8> {
-        let bytes = bincode::serialize(&self).unwrap();
-        bytes
-    }
-
-    pub fn to_puppet(&self) -> Puppet {
-        Puppet::new(format!("{}:{}", self.IP, self.port))
-    }
 }
 
 /// Restaurant is a struct that represents the restaurant.
