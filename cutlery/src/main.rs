@@ -1,5 +1,5 @@
 use calls::Calls;
-use node::Node;
+use node::{Node, RegisterType};
 use random_names::{random_cutlery_name, random_port};
 use shared_menu::*;
 use std::error::Error;
@@ -72,11 +72,5 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
 }
 
 impl Calls for Svc {
-    async fn register(&mut self, buf: Vec<u8>) -> calls::Response {
-        todo!()
-    }
-
-    async fn info(&mut self) -> calls::Response {
-        todo!()
-    }
+    
 }

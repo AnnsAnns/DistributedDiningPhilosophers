@@ -15,7 +15,7 @@ pub enum Response {
     Success,
     Failure(String),
     Return(Vec<u8>),
-    NotImpl,
+    NotFound,
 }
 
 /// Commands that can be sent to a node
@@ -33,10 +33,14 @@ pub enum Commands {
 pub trait Calls {
     /// Register a node with the network
     /// The buffer contains the serialized node to be registered
-    async fn register(&mut self, buf: Vec<u8>) -> Response;
+    async fn register(&mut self, buf: Vec<u8>) -> Response {
+        Response::NotFound
+    }
 
     /// Send info about itself to a node
-    async fn info(&mut self) -> Response;
+    async fn info(&mut self) -> Response {
+        Response::NotFound
+    }
 
     /// Get call from command
     async fn get_call(&mut self, command: Commands) -> Response {

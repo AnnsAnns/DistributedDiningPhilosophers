@@ -1,5 +1,5 @@
 use calls::{Calls, Commands, Response};
-use node::Node;
+use node::{Node, RegisterType};
 use random_names::{random_philosopher_name, random_port};
 use std::error::Error;
 use std::sync::{Arc, Mutex};
@@ -80,11 +80,5 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
 }
 
 impl Calls for Svc {
-    async fn register(&mut self, buf: Vec<u8>) -> Response {
-        Response::NotImpl
-    }
-
-    async fn info(&mut self) -> Response {
-        Response::NotImpl
-    }
+    
 }

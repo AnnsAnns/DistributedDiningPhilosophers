@@ -2,7 +2,15 @@ use std::error::Error;
 
 use tokio::net::TcpStream;
 
-use crate::{calls::{Calls, Commands, Response}, RegisterType};
+use crate::calls::{Calls, Commands, Response};
+
+/// RegisterType is an enum that represents the type of the node that is being registered.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub enum RegisterType {
+    Philosopher,
+    Cutlery,
+    Waiter,
+}
 
 /// Node is a struct that represents a node in the network.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]

@@ -1,10 +1,9 @@
 use calls::{Calls, Response};
-use node::Node;
-use std::error::Error;
+use node::{Node, RegisterType};
+use restaurant::Restaurant;
 use std::net::SocketAddr;
 use std::sync::{Arc, Mutex};
-use tokio::io::{AsyncReadExt, AsyncWriteExt};
-use tokio::net::{TcpListener, TcpStream};
+use tokio::net::{TcpListener};
 
 use shared_menu::*;
 
