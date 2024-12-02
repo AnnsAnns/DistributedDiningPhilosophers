@@ -61,12 +61,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
 
     // Register with the waiter
     {
+        println!("Registering with the waiter");
         let own_data = svc.data.lock().unwrap().public_data.to_bytes();
         let mut waiter = svc.data.lock().unwrap().waiter.to_puppet();
-        
-        waiter.register(own_data.clone()).await;
+
+        let response = waiter.register(own_data.clone()).await;
+        println!("Response from waiter: {:?}", response);
     }
 
+    // Handle incoming connections
     loop {
         let (stream, _) = listener.accept().await?;
         println!("Accepted connection from: {:?}", stream.peer_addr()?);

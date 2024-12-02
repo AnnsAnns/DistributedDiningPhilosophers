@@ -97,20 +97,15 @@ pub trait Calls {
 
         let response = self.handle_request(buf).await;
 
-        println!("Response: {:?}", response);
+        println!("Returning response: {:?}", response);
 
-        match response {
-            Response::Return(bytes) => {
-                let _ = stream.write_all(&bytes).await;
-            }
-            Response::Failure(msg) => {
-                eprintln!("Error: {}", msg);
-            }
-            _ => {}
+        let mut response_bytes = bincode::serialize(&response).unwrap();
+        response_bytes.resize(COMMAND_LEN, 0);
+
+        if let Err(e) = stream.write_all(&response_bytes).await {
+            eprintln!("Failed to write to socket; err = {:?}", e);
+            return;
         }
-
-        // Shutdown the stream
-        stream.shutdown().await.unwrap();
     }
 
     /// Send a command to a node
@@ -146,8 +141,6 @@ pub trait Calls {
                 return Err(Box::new(e));
             }
         };
-
-        stream.shutdown().await.unwrap();
         println!("Received {} bytes", size);
         let response: Response = bincode::deserialize(&buf).unwrap();
         Ok(response)

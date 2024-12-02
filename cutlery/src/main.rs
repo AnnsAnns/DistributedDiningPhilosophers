@@ -1,3 +1,4 @@
+use calls::Calls;
 use random_names::{random_cutlery_name, random_port};
 use shared_menu::*;
 use std::error::Error;
@@ -9,6 +10,12 @@ use tokio::net::{TcpListener, TcpStream};
 struct Cutlery {
     pub public_data: Node,
     pub in_use_by: Option<Node>,
+    pub waiter: Node,
+}
+
+#[derive(Debug, Clone)]
+struct Svc {
+    data: Arc<Mutex<Cutlery>>,
 }
 
 #[tokio::main]
@@ -32,13 +39,45 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
             ofType: RegisterType::Cutlery,
         },
         in_use_by: None,
+        waiter: Node {
+            username: "waiter".to_string(),
+            IP: waiter_ip.clone(),
+            port: waiter_port.parse().unwrap(),
+            ofType: RegisterType::Waiter,
+        },
     };
 
+    let svc = Svc {
+        data: Arc::new(Mutex::new(data)),
+    };
+
+    // Register with the waiter
+    {
+        println!("Registering with the waiter");
+        let own_data = svc.data.lock().unwrap().public_data.to_bytes();
+        let mut waiter = svc.data.lock().unwrap().waiter.to_puppet();
+
+        let response = waiter.register(own_data.clone()).await;
+        println!("Response from waiter: {:?}", response);
+    }
+
+    // Handle incoming connections
     loop {
+        let (stream, _) = listener.accept().await?;
+        println!("Accepted connection from: {:?}", stream.peer_addr()?);
+        let mut svc_clone = svc.clone();
+        tokio::task::spawn(async move {
+            svc_clone.connection_handler(stream).await;
+        });
     }
 }
 
-#[derive(Debug, Clone)]
-struct Svc {
-    data: Arc<Mutex<Cutlery>>,
+impl Calls for Svc {
+    async fn register(&mut self, buf: Vec<u8>) -> calls::Response {
+        todo!()
+    }
+
+    async fn info(&mut self) -> calls::Response {
+        todo!()
+    }
 }
