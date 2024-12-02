@@ -1,5 +1,7 @@
 
 
+use std::error::Error;
+
 use tokio::{io::{AsyncReadExt, AsyncWriteExt}, net::TcpStream};
 
 use crate::COMMAND_LEN;
@@ -56,8 +58,10 @@ pub trait Calls {
         &mut self,
         stream: &mut TcpStream,
     ) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
+        println!("Receiving bytes from stream {:?}", stream.peer_addr());
+
         let mut buf = vec![0; COMMAND_LEN];
-        let n = stream.read_to_end(&mut buf).await;
+        let n = stream.read_exact(&mut buf).await;
 
         let size = match n {
             Ok(size) => size,
@@ -99,15 +103,24 @@ pub trait Calls {
         &mut self,
         stream: &mut TcpStream,
         command: Commands
-    ) -> Result<Response, Box<dyn std::error::Error>> {
+    ) -> Result<Response, Box<dyn Error>> {
         // Write the command to the stream
-        let command = command.to_bytes();
-        let _ = stream.write_all(&command).await;
-        let _ = stream.flush().await;
+        let mut command = command.to_bytes();
+        command.resize(COMMAND_LEN, 0);
+
+        if let Err(e) = stream.write_all(&command).await {
+            eprintln!("Failed to write to socket; err = {:?}", e);
+            return Err(Box::new(e));
+        }
+
+        if let Err(e) = stream.flush().await {
+            eprintln!("Failed to flush socket; err = {:?}", e);
+            return Err(Box::new(e));
+        }
 
         // Read the response from the stream
         let mut buf = vec![0; COMMAND_LEN];
-        let n = stream.read(&mut buf).await;
+        let n = stream.read_exact(&mut buf).await;
         let size = match n {
             Ok(size) => size,
             Err(e) => {

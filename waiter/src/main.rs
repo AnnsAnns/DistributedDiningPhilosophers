@@ -32,6 +32,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
 
     loop {
         let (stream, _) = listener.accept().await?;
+        println!("Accepted connection from: {:?}", stream.peer_addr()?);
         let mut svc_clone = svc.clone();
         tokio::task::spawn(async move {
             svc_clone.connection_handler(stream).await;

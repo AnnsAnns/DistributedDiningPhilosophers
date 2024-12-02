@@ -1,3 +1,4 @@
+use random_names::{random_cutlery_name, random_port};
 use shared_menu::*;
 use std::error::Error;
 use std::sync::{Arc, Mutex};
@@ -33,50 +34,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         in_use_by: None,
     };
 
-    // Register with the waiter at the specified IP and port /register
-    let waiter_addr = format!("{}:{}", waiter_ip, waiter_port);
-    let body = data.public_data.to_bytes();
-    let mut stream = TcpStream::connect(&waiter_addr).await?;
-    println!("Registering with the waiter at: {}", waiter_addr);
-    let result = stream.write_all(&body).await;
-    stream.shutdown().await?;
-    println!("Registered with the waiter: {:?}", result);
-    // receive info of the restaurant
-    let mut buf = vec![0; 1024];
-    let n = stream
-        .read(&mut buf)
-        .await
-        .expect("couldn't read from tcp socket");
-    let restaurant = Restaurant::from_bytes(buf.into());
-
-    println!(
-        "Info erhalten:\nPhilosophen: {:?}\nCutlery: {:?}",
-        restaurant.phillosophers, restaurant.cutlery
-    );
-    let svc = Svc {
-        data: Arc::new(Mutex::new(data)),
-    };
-
     loop {
-        let (stream, _) = listener.accept().await?;
-        let svc_clone = svc.clone();
-        tokio::task::spawn(async move {
-            if let Err(err) = handle_request(stream).await {
-                println!("Failed to serve connection: {:?}", err);
-            }
-        });
     }
-}
-
-async fn handle_request(mut stream: TcpStream) -> Result<(), Box<dyn Error>> {
-    let mut buf = vec![0; 1024];
-    let n = stream
-        .read(&mut buf)
-        .await
-        .expect("couldn't read from tcp socket");
-    let restaurant = Restaurant::from_bytes(buf.into());
-
-    return Ok(());
 }
 
 #[derive(Debug, Clone)]

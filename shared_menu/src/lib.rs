@@ -39,7 +39,7 @@ pub struct Node {
 }
 
 impl Node {
-    pub fn from_bytes(bytes: Vec<u8>) -> Self {
+    pub fn from_bytes(bytes: Vec<u8>) -> OSelf {
         let node: Node = bincode::deserialize(&bytes).unwrap();
         node
     }
@@ -68,7 +68,7 @@ impl Default for Restaurant {
 
 impl Restaurant {
     pub fn from_bytes(bytes: Bytes) -> Self {
-        let restaurant: Restaurant = bincode::deserialize(&bytes[..]).unwrap();
+        let restaurant: Restaurant = bincode::deserialize(&bytes).unwrap();
         restaurant
     }
 

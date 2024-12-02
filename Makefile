@@ -8,6 +8,9 @@ up:
 start_waiter:
 	@docker-compose up --build waiter
 
+start_philosopher:
+	@docker-compose up --build philosopher
+
 .PHONY: dontcare
 dontcare:
 	docker-compose up

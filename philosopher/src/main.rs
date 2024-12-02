@@ -59,8 +59,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     println!("Registering with the waiter at: {}", waiter_addr);
     let command = Commands::Register(svc.data.lock().unwrap().public_data.to_bytes());
     let result = svc.send_command_to(&mut stream, command).await;
-    println!("Registered with the waiter: {:?}", result);;
-    Ok(())
+    println!("Registered with the waiter: {:?}", result);
+    stream.shutdown().await?;
+
+    loop {
+    }
 }
 
 impl Calls for Svc {
