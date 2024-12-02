@@ -1,4 +1,9 @@
 
+
+use tokio::{io::{AsyncReadExt, AsyncWriteExt}, net::TcpStream};
+
+use crate::COMMAND_LEN;
+
 /// Response from a call
 /// - **Success**: The call was successful
 /// - **Failure**: The call failed with the given message
@@ -8,10 +13,11 @@ pub enum Response {
     Success,
     Failure(String),
     Return(Vec<u8>),
+    NotImpl,
 }
 
 /// Commands that can be sent to a node
-/// This are treated as calls to the node 
+/// This are treated as calls to the node
 /// and are handled by the nodes implementation of the `Calls` trait
 #[derive(serde::Deserialize, serde::Serialize, Debug)]
 pub enum Commands {
@@ -26,7 +32,7 @@ pub trait Calls {
     /// Register a node with the network
     /// The buffer contains the serialized node to be registered
     fn register(&mut self, buf: Vec<u8>) -> Response;
-    
+
     /// Send info about itself to a node
     fn info(&mut self) -> Response;
 
@@ -35,22 +41,46 @@ pub trait Calls {
         match command {
             Commands::Register(buf) => self.register(buf),
             Commands::Info => self.info(),
-            _ => {
-                Response::Failure("Unknown command!".to_string())
-            }
+            _ => Response::Failure("Unknown command!".to_string()),
         }
+    }
+
+    /// Handle a request
+    /// The buffer contains the serialized command to be executed
+    fn handle_request(&mut self, buf: Vec<u8>) -> Response {
+        let command: Commands = bincode::deserialize(&buf).unwrap();
+        self.get_call(command)
+    }
+
+    async fn receive_bytes(
+        &mut self,
+        stream: &mut TcpStream,
+    ) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
+        let mut buf = vec![0; COMMAND_LEN];
+        let n = stream.read_to_end(&mut buf).await;
+
+        let size = match n {
+            Ok(size) => size,
+            Err(e) => {
+                eprintln!("Failed to read from socket; err = {:?}", e);
+                return Err(Box::new(e));
+            }
+        };
+
+        println!("Received {} bytes", size);
+        Ok(buf)
     }
 }
 
 /// Generic implementation of the `Calls` trait for a node
 impl Commands {
     pub fn from_bytes(bytes: Vec<u8>) -> Self {
-        let command: Commands = bincode::deserialize(&bytes).unwrap();
+        let command = bincode::deserialize(&bytes).unwrap();
+        println!("Received command: {:?}", command);
         command
     }
 
     pub fn to_bytes(&self) -> Vec<u8> {
-        let bytes = bincode::serialize(&self).unwrap();
-        bytes
+        bincode::serialize(self).unwrap()
     }
 }

@@ -5,6 +5,8 @@ use rand::Rng;
 
 pub mod calls;
 
+pub const COMMAND_LEN: usize = 1024;
+
 ///enum containing all waiter functions callable using rpc
 pub enum WaiterCalls {
     Register(String, String, u16, RegisterType),
