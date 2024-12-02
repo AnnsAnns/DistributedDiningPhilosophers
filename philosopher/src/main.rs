@@ -1,19 +1,17 @@
-use calls::{Calls, Commands, Response};
+use calls::Calls;
 use node::{Node, RegisterType};
 use random_names::{random_philosopher_name, random_port};
-use std::error::Error;
 use std::sync::{Arc, Mutex};
-use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpListener;
-use tokio::net::TcpStream;
 
 use shared_menu::*;
 
 #[derive(Debug, Clone)]
 struct Philosopher {
     pub public_data: Node,
+    #[allow(dead_code)] 
     pub owned_cutlery: Vec<Node>,
-    #[allow(dead_code)] // This is sent to the waiter, but not used in this service
+    #[allow(dead_code)] 
     pub wisdom: String,
     pub waiter: Node,
 }
@@ -42,21 +40,21 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let data = Philosopher {
         public_data: Node {
             username: username.clone(),
-            IP: ip.clone(),
-            port: port,
-            ofType: RegisterType::Philosopher,
+            ip: ip.clone(),
+            port,
+            of_type: RegisterType::Philosopher,
         },
         owned_cutlery: Vec::new(),
         wisdom,
         waiter: Node {
             username: "waiter".to_string(),
-            IP: waiter_ip.clone(),
+            ip: waiter_ip.clone(),
             port: waiter_port.parse().unwrap(),
-            ofType: RegisterType::Waiter,
+            of_type: RegisterType::Waiter,
         },
     };
 
-    let mut svc = Svc {
+    let svc = Svc {
         data: Arc::new(Mutex::new(data)),
     };
 

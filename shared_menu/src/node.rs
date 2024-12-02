@@ -1,4 +1,3 @@
-use std::error::Error;
 
 use tokio::net::TcpStream;
 
@@ -16,9 +15,9 @@ pub enum RegisterType {
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct Node {
     pub username: String,
-    pub IP: String,
+    pub ip: String,
     pub port: u16,
-    pub ofType: RegisterType,
+    pub of_type: RegisterType,
 }
 
 impl Node {
@@ -28,12 +27,12 @@ impl Node {
     }
 
     pub fn to_bytes(&self) -> Vec<u8> {
-        let bytes = bincode::serialize(&self).unwrap();
-        bytes
+        
+        bincode::serialize(&self).unwrap()
     }
 
     pub fn get_address(&self) -> String {
-        format!("{}:{}", self.IP, self.port)
+        format!("{}:{}", self.ip, self.port)
     }
 
     async fn puppet_action(&mut self, command: Commands) -> Response {

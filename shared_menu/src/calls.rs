@@ -30,10 +30,11 @@ pub enum Commands {
 /// Trait for a node that can be called
 /// This trait is implemented to either be a waiter, cutlery or philosopher
 /// which also dictates the implementation of the `Calls` trait
+#[allow(async_fn_in_trait)]
 pub trait Calls {
     /// Register a node with the network
     /// The buffer contains the serialized node to be registered
-    async fn register(&mut self, buf: Vec<u8>) -> Response {
+    async fn register(&mut self, _buf: Vec<u8>) -> Response {
         Response::NotFound
     }
 
@@ -46,8 +47,7 @@ pub trait Calls {
     async fn get_call(&mut self, command: Commands) -> Response {
         match command {
             Commands::Register(buf) => self.register(buf).await,
-            Commands::Info => self.info().await,
-            _ => Response::Failure("Unknown command!".to_string()),
+            Commands::Info => self.info().await
         }
     }
 
@@ -108,7 +108,6 @@ pub trait Calls {
 
         if let Err(e) = stream.write_all(&response_bytes).await {
             eprintln!("Failed to write to socket; err = {:?}", e);
-            return;
         }
     }
 

@@ -4,19 +4,12 @@ use crate::node::Node;
 
 /// Restaurant is a struct that represents the restaurant.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Default)]
 pub struct Restaurant {
     pub phillosophers: Vec<Node>,
     pub cutlery: Vec<Node>,
 }
 
-impl Default for Restaurant {
-    fn default() -> Self {
-        Self {
-            phillosophers: Vec::new(),
-            cutlery: Vec::new(),
-        }
-    }
-}
 
 impl Restaurant {
     pub fn from_bytes(bytes: Bytes) -> Self {

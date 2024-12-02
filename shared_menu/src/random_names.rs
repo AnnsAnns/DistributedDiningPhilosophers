@@ -45,8 +45,7 @@ pub fn random_philosopher_name() -> String {
 
 /// Create a random cutlery name
 pub fn random_cutlery_name() -> String {
-    let names = vec![
-        "Fork",
+    let names = ["Fork",
         "Spoon",
         "Knife",
         "Chopsticks",
@@ -54,8 +53,7 @@ pub fn random_cutlery_name() -> String {
         "Splayd",
         "Trongs",
         "Chork",
-        "Knork",
-    ];
+        "Knork"];
     let mut rng = rand::thread_rng();
     let name = names[rng.gen_range(0..names.len())];
     let number = rng.gen_range(0..1000);

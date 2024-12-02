@@ -2,14 +2,13 @@ use calls::Calls;
 use node::{Node, RegisterType};
 use random_names::{random_cutlery_name, random_port};
 use shared_menu::*;
-use std::error::Error;
 use std::sync::{Arc, Mutex};
-use tokio::io::{AsyncReadExt, AsyncWriteExt};
-use tokio::net::{TcpListener, TcpStream};
+use tokio::net::TcpListener;
 
 #[derive(Debug, Clone)]
 struct Cutlery {
     pub public_data: Node,
+    #[allow(dead_code)]
     pub in_use_by: Option<Node>,
     pub waiter: Node,
 }
@@ -35,16 +34,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let data = Cutlery {
         public_data: Node {
             username: username.clone(),
-            IP: ip.clone(),
-            port: port,
-            ofType: RegisterType::Cutlery,
+            ip: ip.clone(),
+            port,
+            of_type: RegisterType::Cutlery,
         },
         in_use_by: None,
         waiter: Node {
             username: "waiter".to_string(),
-            IP: waiter_ip.clone(),
+            ip: waiter_ip.clone(),
             port: waiter_port.parse().unwrap(),
-            ofType: RegisterType::Waiter,
+            of_type: RegisterType::Waiter,
         },
     };
 
@@ -72,5 +71,5 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
 }
 
 impl Calls for Svc {
-    
+
 }

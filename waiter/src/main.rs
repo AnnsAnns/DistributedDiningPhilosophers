@@ -50,7 +50,7 @@ impl Calls for Svc {
             let node = Node::from_bytes(buf);
             let mut restaurant = restaurant.lock().unwrap();
             println!("Registering node: {:?}", node);
-            match node.ofType {
+            match node.of_type {
                 RegisterType::Philosopher => restaurant.phillosophers.push(node),
                 RegisterType::Cutlery => restaurant.cutlery.push(node),
                 _ => println!("Unknown node type!"),
