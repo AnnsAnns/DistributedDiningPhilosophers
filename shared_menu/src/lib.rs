@@ -2,8 +2,11 @@ use core::num;
 
 use bytes::Bytes;
 
+use puppet::Puppet;
+
 pub mod calls;
 pub mod random_names;
+pub mod puppet;
 
 pub const COMMAND_LEN: usize = 1024;
 
@@ -27,6 +30,7 @@ pub enum PhilosophCalls {
 pub enum RegisterType {
     Philosopher,
     Cutlery,
+    Waiter,
 }
 
 /// Node is a struct that represents a node in the network.
@@ -47,6 +51,10 @@ impl Node {
     pub fn to_bytes(&self) -> Vec<u8> {
         let bytes = bincode::serialize(&self).unwrap();
         bytes
+    }
+
+    pub fn to_puppet(&self) -> Puppet {
+        Puppet::new(format!("{}:{}", self.IP, self.port))
     }
 }
 

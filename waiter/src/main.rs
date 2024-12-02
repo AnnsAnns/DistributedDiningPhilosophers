@@ -41,7 +41,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
 }
 
 impl Calls for Svc {
-    fn register(&mut self, buf: Vec<u8>) -> Response {
+    async fn register(&mut self, buf: Vec<u8>) -> Response {
         // Spawn async block to handle the request
         let restaurant = self.restaurant.clone();
 
@@ -53,13 +53,14 @@ impl Calls for Svc {
             match node.ofType {
                 RegisterType::Philosopher => restaurant.phillosophers.push(node),
                 RegisterType::Cutlery => restaurant.cutlery.push(node),
+                _ => println!("Unknown node type!"),
             }
         });
 
         Response::Success
     }
 
-    fn info(&mut self) -> Response {
+    async fn info(&mut self) -> Response {
         let restaurant = self.restaurant.clone();
         let restaurant = restaurant.lock().expect("closed");
         let restaurant_bytes = restaurant.to_bytes().to_vec();

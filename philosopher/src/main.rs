@@ -14,6 +14,7 @@ struct Philosopher {
     pub owned_cutlery: Vec<Node>,
     #[allow(dead_code)] // This is sent to the waiter, but not used in this service
     pub wisdom: String,
+    pub waiter: Node,
 }
 
 #[derive(Debug, Clone)]
@@ -46,32 +47,42 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         },
         owned_cutlery: Vec::new(),
         wisdom,
+        waiter: Node {
+            username: "waiter".to_string(),
+            IP: waiter_ip.clone(),
+            port: waiter_port.parse().unwrap(),
+            ofType: RegisterType::Waiter,
+        },
     };
 
     let mut svc = Svc {
         data: Arc::new(Mutex::new(data)),
     };
 
-    // Register with the waiter at the specified IP and port /register
-    let waiter_addr = format!("{}:{}", waiter_ip, waiter_port);
-
-    let mut stream = TcpStream::connect(&waiter_addr).await?;
-    println!("Registering with the waiter at: {}", waiter_addr);
-    let command = Commands::Register(svc.data.lock().unwrap().public_data.to_bytes());
-    let result = svc.send_command_to(&mut stream, command).await;
-    println!("Registered with the waiter: {:?}", result);
-    stream.shutdown().await?;
+    // Register with the waiter
+    {
+        let own_data = svc.data.lock().unwrap().public_data.to_bytes();
+        let mut waiter = svc.data.lock().unwrap().waiter.to_puppet();
+        
+        waiter.register(own_data.clone()).await;
+    }
 
     loop {
+        let (stream, _) = listener.accept().await?;
+        println!("Accepted connection from: {:?}", stream.peer_addr()?);
+        let mut svc_clone = svc.clone();
+        tokio::task::spawn(async move {
+            svc_clone.connection_handler(stream).await;
+        });
     }
 }
 
 impl Calls for Svc {
-    fn register(&mut self, buf: Vec<u8>) -> Response {
+    async fn register(&mut self, buf: Vec<u8>) -> Response {
         Response::NotImpl
     }
 
-    fn info(&mut self) -> Response {
+    async fn info(&mut self) -> Response {
         Response::NotImpl
     }
 }

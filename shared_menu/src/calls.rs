@@ -10,7 +10,7 @@ use crate::COMMAND_LEN;
 /// - **Success**: The call was successful
 /// - **Failure**: The call failed with the given message
 /// - **Return**: The call returned the given data, serialized as a byte vector
-#[derive(serde::Deserialize, serde::Serialize, Debug)]
+#[derive(serde::Deserialize, serde::Serialize, Debug, PartialEq)]
 pub enum Response {
     Success,
     Failure(String),
@@ -33,25 +33,26 @@ pub enum Commands {
 pub trait Calls {
     /// Register a node with the network
     /// The buffer contains the serialized node to be registered
-    fn register(&mut self, buf: Vec<u8>) -> Response;
+    async fn register(&mut self, buf: Vec<u8>) -> Response;
 
     /// Send info about itself to a node
-    fn info(&mut self) -> Response;
+    async fn info(&mut self) -> Response;
 
     /// Get call from command
-    fn get_call(&mut self, command: Commands) -> Response {
+    async fn get_call(&mut self, command: Commands) -> Response {
         match command {
-            Commands::Register(buf) => self.register(buf),
-            Commands::Info => self.info(),
+            Commands::Register(buf) => self.register(buf).await,
+            Commands::Info => self.info().await,
             _ => Response::Failure("Unknown command!".to_string()),
         }
     }
 
     /// Handle a request
     /// The buffer contains the serialized command to be executed
-    fn handle_request(&mut self, buf: Vec<u8>) -> Response {
+    async fn handle_request(&mut self, buf: Vec<u8>) -> Response {
         let command: Commands = bincode::deserialize(&buf).unwrap();
-        self.get_call(command)
+        println!("Received command: {:?}", command);
+        self.get_call(command).await
     }
 
     /// Receive bytes from a stream
@@ -94,7 +95,7 @@ pub trait Calls {
             }
         };
 
-        let response = self.handle_request(buf);
+        let response = self.handle_request(buf).await;
 
         println!("Response: {:?}", response);
 
@@ -107,6 +108,9 @@ pub trait Calls {
             }
             _ => {}
         }
+
+        // Shutdown the stream
+        stream.shutdown().await.unwrap();
     }
 
     /// Send a command to a node
@@ -143,6 +147,7 @@ pub trait Calls {
             }
         };
 
+        stream.shutdown().await.unwrap();
         println!("Received {} bytes", size);
         let response: Response = bincode::deserialize(&buf).unwrap();
         Ok(response)
