@@ -94,6 +94,32 @@ pub trait Calls {
             _ => {}
         }
     }
+
+    async fn send_command_to(
+        &mut self,
+        stream: &mut TcpStream,
+        command: Commands
+    ) -> Result<Response, Box<dyn std::error::Error>> {
+        // Write the command to the stream
+        let command = command.to_bytes();
+        let _ = stream.write_all(&command).await;
+        let _ = stream.flush().await;
+
+        // Read the response from the stream
+        let mut buf = vec![0; COMMAND_LEN];
+        let n = stream.read(&mut buf).await;
+        let size = match n {
+            Ok(size) => size,
+            Err(e) => {
+                eprintln!("Failed to read from socket; err = {:?}", e);
+                return Err(Box::new(e));
+            }
+        };
+
+        println!("Received {} bytes", size);
+        let response: Response = bincode::deserialize(&buf).unwrap();
+        Ok(response)
+    }
 }
 
 /// Generic implementation of the `Calls` trait for a node
