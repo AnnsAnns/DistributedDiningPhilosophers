@@ -7,6 +7,11 @@ use tokio::net::{TcpListener, TcpStream};
 
 use shared_menu::*;
 
+#[derive(Debug, Clone)]
+struct Svc {
+    restaurant: Arc<Mutex<Restaurant>>,
+}
+
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     // Get ip and port from env vars
@@ -26,38 +31,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     };
 
     loop {
-        let (mut stream, _) = listener.accept().await?;
-        //let io = TokioIo::new(stream);
+        let (stream, _) = listener.accept().await?;
         let mut svc_clone = svc.clone();
         tokio::task::spawn(async move {
-            let buf = match svc_clone.receive_bytes(&mut stream).await {
-                Ok(buf) => buf,
-                Err(e) => {
-                    eprintln!("Error receiving bytes: {:?}", e);
-                    return;
-                }
-            };
-
-            let response = svc_clone.handle_request(buf);
-
-            println!("Response: {:?}", response);
-
-            match response {
-                Response::Return(bytes) => {
-                    let _ = stream.write_all(&bytes).await;
-                }
-                Response::Failure(msg) => {
-                    eprintln!("Error: {}", msg);
-                }
-                _ => {}
-            }
+            svc_clone.connection_handler(stream).await;
         });
     }
-}
-
-#[derive(Debug, Clone)]
-struct Svc {
-    restaurant: Arc<Mutex<Restaurant>>,
 }
 
 impl Calls for Svc {

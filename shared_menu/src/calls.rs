@@ -70,6 +70,30 @@ pub trait Calls {
         println!("Received {} bytes", size);
         Ok(buf)
     }
+
+    async fn connection_handler(&mut self, mut stream: TcpStream) {
+        let buf = match self.receive_bytes(&mut stream).await {
+            Ok(buf) => buf,
+            Err(e) => {
+                eprintln!("Error receiving bytes: {:?}", e);
+                return;
+            }
+        };
+
+        let response = self.handle_request(buf);
+
+        println!("Response: {:?}", response);
+
+        match response {
+            Response::Return(bytes) => {
+                let _ = stream.write_all(&bytes).await;
+            }
+            Response::Failure(msg) => {
+                eprintln!("Error: {}", msg);
+            }
+            _ => {}
+        }
+    }
 }
 
 /// Generic implementation of the `Calls` trait for a node
