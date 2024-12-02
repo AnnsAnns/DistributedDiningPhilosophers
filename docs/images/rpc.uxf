@@ -1,0 +1,18 @@
+<diagram program="umletino" version="15.1"><zoom_level>11</zoom_level><help_text>Space for diagram notes</help_text><element><id>UMLGeneric</id><coordinates><x>154</x><y>99</y><w>110</w><h>33</h></coordinates><panel_attributes>_:Philosopher 1_</panel_attributes><additional_attributes></additional_attributes></element><element><id>Relation</id><coordinates><x>352</x><y>121</y><w>33</w><h>275</h></coordinates><panel_attributes>lt=.</panel_attributes><additional_attributes>10;10;10;230</additional_attributes></element><element><id>UMLGeneric</id><coordinates><x>308</x><y>99</y><w>110</w><h>33</h></coordinates><panel_attributes>_:Waiter_</panel_attributes><additional_attributes></additional_attributes></element><element><id>Relation</id><coordinates><x>198</x><y>220</y><w>187</w><h>44</h></coordinates><panel_attributes>lt=&lt;-
+send(command)</panel_attributes><additional_attributes>150;20;10;20</additional_attributes></element><element><id>Relation</id><coordinates><x>198</x><y>275</y><w>187</w><h>44</h></coordinates><panel_attributes>lt=&lt;-
+Response</panel_attributes><additional_attributes>10;20;150;20</additional_attributes></element><element><id>Relation</id><coordinates><x>198</x><y>121</y><w>33</w><h>275</h></coordinates><panel_attributes>lt=.</panel_attributes><additional_attributes>10;10;10;230</additional_attributes></element><element><id>Relation</id><coordinates><x>0</x><y>132</y><w>231</w><h>77</h></coordinates><panel_attributes>lt=&lt;-
+command = 
+Command:Register(data)
+.to_bytes()
+cbase=l
+</panel_attributes><additional_attributes>190;40;150;40;150;20;190;20</additional_attributes></element><element><id>Relation</id><coordinates><x>198</x><y>165</y><w>187</w><h>44</h></coordinates><panel_attributes>lt=&lt;-
+connect TCP</panel_attributes><additional_attributes>150;20;10;20</additional_attributes></element><element><id>Relation</id><coordinates><x>352</x><y>132</y><w>121</w><h>55</h></coordinates><panel_attributes>lt=&lt;-
+listen TCP</panel_attributes><additional_attributes>10;30;40;30;40;10;10;10</additional_attributes></element><element><id>Relation</id><coordinates><x>198</x><y>187</y><w>187</w><h>44</h></coordinates><panel_attributes>lt=&lt;-
+accept TCP</panel_attributes><additional_attributes>10;20;150;20</additional_attributes></element><element><id>Relation</id><coordinates><x>352</x><y>242</y><w>176</w><h>55</h></coordinates><panel_attributes>lt=&lt;-
+decode Command,
+Call register(data)</panel_attributes><additional_attributes>10;30;40;30;40;10;10;10</additional_attributes></element><element><id>Relation</id><coordinates><x>44</x><y>319</y><w>187</w><h>66</h></coordinates><panel_attributes>lt=&lt;-
+decode Response,
+handle Response
+cbase=l
+</panel_attributes><additional_attributes>150;30;110;30;110;10;150;10</additional_attributes></element><element><id>Relation</id><coordinates><x>198</x><y>297</y><w>187</w><h>44</h></coordinates><panel_attributes>lt=&lt;-
+close TCP</panel_attributes><additional_attributes>10;20;150;20</additional_attributes></element></diagram>
