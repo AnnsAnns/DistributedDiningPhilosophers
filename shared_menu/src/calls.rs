@@ -54,6 +54,12 @@ pub trait Calls {
         self.get_call(command)
     }
 
+    /// Receive bytes from a stream
+    /// The bytes are read from the stream and returned
+    /// as a byte vector
+    /// This is used to receive the command from a node
+    /// and to receive the response from a node
+    /// The buffer is expected to be of length `COMMAND_LEN`
     async fn receive_bytes(
         &mut self,
         stream: &mut TcpStream,
@@ -75,6 +81,10 @@ pub trait Calls {
         Ok(buf)
     }
 
+    /// Handle a connection
+    /// The stream is the connection to the node
+    /// The command is read from the stream and handled
+    /// The response is then sent back to the node
     async fn connection_handler(&mut self, mut stream: TcpStream) {
         let buf = match self.receive_bytes(&mut stream).await {
             Ok(buf) => buf,
@@ -99,6 +109,10 @@ pub trait Calls {
         }
     }
 
+    /// Send a command to a node
+    /// The command is serialized and sent to the node
+    /// The response is then read from the node and returned
+    /// as a `Response` enum
     async fn send_command_to(
         &mut self,
         stream: &mut TcpStream,
