@@ -3,7 +3,7 @@ use node::{Node, RegisterType};
 use restaurant::Restaurant;
 use std::net::SocketAddr;
 use std::sync::{Arc, Mutex};
-use tokio::net::{TcpListener};
+use tokio::net::TcpListener;
 
 use shared_menu::*;
 
@@ -45,7 +45,9 @@ impl Calls for Svc {
         // Spawn async block to handle the request
         let restaurant = self.restaurant.clone();
 
-        tokio::task::spawn(async move {
+        // Spawn async block to handle the registration request
+        // We have to use tasks here to properly handle the mutex
+        let _ = tokio::task::spawn(async move {
             println!("Handling registration request!");
             let node = Node::from_bytes(buf);
             let mut restaurant = restaurant.lock().unwrap();
@@ -55,7 +57,24 @@ impl Calls for Svc {
                 RegisterType::Cutlery => restaurant.cutlery.push(node),
                 _ => println!("Unknown node type!"),
             }
-        });
+        })
+        .await;
+
+        // Spawn async block to inform all nodes of new node
+        let restaurant_copy = self.restaurant.clone();
+        let _ = tokio::task::spawn(async move {
+            println!("Informing all nodes of new node!");
+            let restaurant = restaurant_copy.lock().unwrap();
+            let phillosophers = restaurant.phillosophers.clone();
+            for node in phillosophers {
+                let restaurant_bytes = restaurant.clone().to_bytes().to_vec();
+                tokio::task::spawn(async move {
+                    let mut node = node.clone();
+                    let response = node.register(restaurant_bytes.clone()).await;
+                    println!("Response from node: {:?}", response);
+                });
+            }
+        }).await;
 
         Response::Success
     }

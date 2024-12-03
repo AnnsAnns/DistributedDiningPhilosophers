@@ -2,7 +2,10 @@ use calls::{Calls, Response};
 use node::{Node, RegisterType};
 use random_names::{random_philosopher_name, random_port};
 use restaurant::Restaurant;
-use std::{sync::{Arc, Mutex}, time::Duration};
+use std::{
+    sync::{Arc, Mutex},
+    time::Duration,
+};
 use tokio::net::TcpListener;
 
 use shared_menu::*;
@@ -10,7 +13,7 @@ use shared_menu::*;
 #[derive(Debug, Clone)]
 struct Philosopher {
     pub public_data: Node,
-    #[allow(dead_code)] 
+    #[allow(dead_code)]
     pub owned_cutlery: Vec<Node>,
     pub restaurant: Restaurant,
     pub waiter: Node,
@@ -64,27 +67,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let response = waiter.register(own_data.clone()).await;
     println!("Response from waiter: {:?}", response);
 
-    // Spawn async info collector
-    let svc_copy = svc.clone();
-    tokio::spawn(async move {
-        let svc = svc_copy;
-        loop {
-            let mut waiter = svc.data.lock().unwrap().waiter.clone();
-            let response = waiter.info().await;
-
-            if let Response::Return(buf) = response {
-                let restaurant = Restaurant::from_bytes(buf.into());
-                println!("Received restaurant: {:?}", restaurant);
-                let mut data = svc.data.lock().unwrap();
-                data.restaurant = restaurant;
-            } else {
-                println!("Waiter returned an error to info request: {:?}", response);
-            }
-
-            tokio::time::sleep(Duration::from_secs(5)).await;
-        }
-    });
-
     // Handle incoming connections
     loop {
         let (stream, _) = listener.accept().await?;
@@ -97,5 +79,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
 }
 
 impl Calls for Svc {
-    
+    async fn register(&mut self, _buf: Vec<u8>) -> Response {
+        let mut data = self.data.lock().unwrap();
+        let restaurant = Restaurant::from_bytes(_buf.into());
+        println!("Received restaurant update: {:?}", restaurant);
+        data.restaurant = restaurant;
+        Response::Success
+    }
 }

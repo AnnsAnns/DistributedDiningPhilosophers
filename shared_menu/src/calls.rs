@@ -23,8 +23,8 @@ pub enum Response {
 /// and are handled by the nodes implementation of the `Calls` trait
 #[derive(serde::Deserialize, serde::Serialize, Debug)]
 pub enum Commands {
-    Register(Vec<u8>),
-    Info,
+    Register(Vec<u8>), // Register Nodes with the network, e.g. waiter
+    Info, // Request info about a node, e.g. waiter
 }
 
 /// Trait for a node that can be called
