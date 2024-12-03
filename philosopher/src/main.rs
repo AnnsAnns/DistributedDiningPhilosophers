@@ -1,7 +1,8 @@
-use calls::Calls;
+use calls::{Calls, Response};
 use node::{Node, RegisterType};
 use random_names::{random_philosopher_name, random_port};
-use std::sync::{Arc, Mutex};
+use restaurant::Restaurant;
+use std::{sync::{Arc, Mutex}, time::Duration};
 use tokio::net::TcpListener;
 
 use shared_menu::*;
@@ -11,8 +12,7 @@ struct Philosopher {
     pub public_data: Node,
     #[allow(dead_code)] 
     pub owned_cutlery: Vec<Node>,
-    #[allow(dead_code)] 
-    pub wisdom: String,
+    pub restaurant: Restaurant,
     pub waiter: Node,
 }
 
@@ -29,8 +29,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let username = random_philosopher_name();
     let waiter_ip = std::env::var("WAITER_IP").expect("WAITER_IP must be set");
     let waiter_port = std::env::var("WAITER_PORT").expect("WAITER_PORT must be set");
-    let wisdom =
-        std::env::var("WISDOM").unwrap_or("The fork is mightier than the spoon.".to_string());
 
     let addr = format!("{}:{}", ip, port);
 
@@ -45,7 +43,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
             of_type: RegisterType::Philosopher,
         },
         owned_cutlery: Vec::new(),
-        wisdom,
+        restaurant: Restaurant::default(),
         waiter: Node {
             username: "waiter".to_string(),
             ip: waiter_ip.clone(),
@@ -65,6 +63,27 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
 
     let response = waiter.register(own_data.clone()).await;
     println!("Response from waiter: {:?}", response);
+
+    // Spawn async info collector
+    let svc_copy = svc.clone();
+    tokio::spawn(async move {
+        let svc = svc_copy;
+        loop {
+            let mut waiter = svc.data.lock().unwrap().waiter.clone();
+            let response = waiter.info().await;
+
+            if let Response::Return(buf) = response {
+                let restaurant = Restaurant::from_bytes(buf.into());
+                println!("Received restaurant: {:?}", restaurant);
+                let mut data = svc.data.lock().unwrap();
+                data.restaurant = restaurant;
+            } else {
+                println!("Waiter returned an error to info request: {:?}", response);
+            }
+
+            tokio::time::sleep(Duration::from_secs(5)).await;
+        }
+    });
 
     // Handle incoming connections
     loop {
