@@ -1,4 +1,4 @@
-use calls::Calls;
+use calls::{Calls, Response};
 use node::{Node, RegisterType};
 use random_names::{random_cutlery_name, random_port};
 use shared_menu::*;
@@ -10,6 +10,7 @@ struct Cutlery {
     pub public_data: Node,
     #[allow(dead_code)]
     pub in_use_by: Option<Node>,
+    pub dirty: bool,
     pub waiter: Node,
 }
 
@@ -39,6 +40,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
             of_type: RegisterType::Cutlery,
         },
         in_use_by: None,
+        dirty: true,
         waiter: Node {
             username: "waiter".to_string(),
             ip: waiter_ip.clone(),
@@ -71,5 +73,40 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
 }
 
 impl Calls for Svc {
+    ///cleans the cutlery, should be done by philosophers before passing them to someone else
+    async fn clean_cutlery(&mut self, _cutlery: Node) -> Response {
+        let mut data = self.data.lock().unwrap();
+        data.dirty = false;
 
+        Response::Success
+    }
+    ///makes the cutlery dirty, should happen when philosophers eat
+    async fn use_cutlery(&mut self, _cutlery: Node) -> Response {
+        let mut data = self.data.lock().unwrap();
+        data.dirty = true;
+
+        Response::Success
+    }
+    async fn pick_up(&mut self, philosopher: Node) -> Response {
+        let mut data = self.data.lock().unwrap();
+        match data.in_use_by {
+            Some(_) => Response::Failure("No nabbing allowed!".to_string()),
+            None => {
+                data.in_use_by = Some(philosopher);
+                Response::Success
+            }
+        }
+    }
+    async fn put_down(&mut self) -> Response {
+        let mut data = self.data.lock().unwrap();
+        data.in_use_by = None;
+        Response::Success
+    }
+    async fn is_dirty(&mut self) -> Response {
+        let data = self.data.lock().unwrap();
+        match data.dirty {
+            true => Response::Return("true".as_bytes().to_vec()),
+            false => Response::Return("false".as_bytes().to_vec()),
+        }
+    }
 }

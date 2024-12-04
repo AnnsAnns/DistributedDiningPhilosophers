@@ -1,12 +1,14 @@
 use calls::{Calls, Response};
+use core::str;
 use node::{Node, RegisterType};
+use rand::{self, Rng};
 use random_names::{random_philosopher_name, random_port};
 use restaurant::Restaurant;
 use std::{
     sync::{Arc, Mutex},
     time::Duration,
 };
-use tokio::net::TcpListener;
+use tokio::{net::TcpListener, time::sleep};
 
 use shared_menu::*;
 
@@ -14,7 +16,13 @@ use shared_menu::*;
 struct Philosopher {
     pub public_data: Node,
     #[allow(dead_code)]
-    pub owned_cutlery: Vec<Node>,
+    //can be 'thinking', 'hungry' or 'eating'
+    pub state: String,
+    //right 0, left 1
+    pub owned_cutlery: Vec<Option<Node>>,
+    //right 0, left 1
+    pub remembered_requests: Vec<Option<Node>>,
+    pub id: usize,
     pub restaurant: Restaurant,
     pub waiter: Node,
 }
@@ -45,7 +53,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
             port,
             of_type: RegisterType::Philosopher,
         },
-        owned_cutlery: Vec::new(),
+        state: "".to_string(),
+        owned_cutlery: vec![None; 2],
+        remembered_requests: vec![None; 2],
+        id: 0,
         restaurant: Restaurant::default(),
         waiter: Node {
             username: "waiter".to_string(),
@@ -71,11 +82,166 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     loop {
         let (stream, _) = listener.accept().await?;
         println!("Accepted connection from: {:?}", stream.peer_addr()?);
-        let mut svc_clone = svc.clone();
+        let mut svc_clone2 = svc.clone();
         tokio::task::spawn(async move {
-            svc_clone.connection_handler(stream).await;
+            svc_clone2.connection_handler(stream).await;
         });
     }
+}
+/// two things that we can do if the mutex won't work like this: tokio mutex that can be held across .await or make cutlery not a container but just a field
+/// Philosopher main logic loop
+async fn sit_at_table(mut svc: Svc) {
+    println!("seated.");
+    loop {
+        //thinking
+        if svc.data.lock().unwrap().state == "thinking" {
+            let rnd_sleep = rand::thread_rng().gen_range(1..=3);
+            sleep(Duration::from_secs(rnd_sleep)).await;
+            svc.data.lock().unwrap().state = "hungry".to_string();
+
+            //hungry
+            let svc_clone = svc.clone();
+            request_cutlery(svc_clone).await;
+        }
+
+        //eating
+        if svc.data.lock().unwrap().state == "eating" {
+            let rnd_sleep = rand::thread_rng().gen_range(1..=3);
+            sleep(Duration::from_secs(rnd_sleep)).await;
+            //pass cutleries if there are open requests
+            let cutlery1 = svc.data.lock().unwrap().owned_cutlery[0].clone();
+            let request1 = svc.data.lock().unwrap().remembered_requests[0].clone();
+            match request1 {
+                Some(_) => {
+                    cutlery1
+                        .clone()
+                        .unwrap()
+                        .clean_cutlery(cutlery1.clone().unwrap())
+                        .await;
+                    pass_cutlery(svc.clone(), "right".to_string()).await;
+                }
+                None => {
+                    cutlery1
+                        .clone()
+                        .unwrap()
+                        .use_cutlery(cutlery1.clone().unwrap())
+                        .await;
+                }
+            }
+            let cutlery2 = svc.data.lock().unwrap().owned_cutlery[1].clone();
+            let request2 = svc.data.lock().unwrap().remembered_requests[1].clone();
+            match request2 {
+                Some(_) => {
+                    cutlery2
+                        .clone()
+                        .unwrap()
+                        .clean_cutlery(cutlery2.clone().unwrap())
+                        .await;
+                    pass_cutlery(svc.clone(), "left".to_string()).await;
+                }
+                None => {
+                    cutlery2
+                        .clone()
+                        .unwrap()
+                        .use_cutlery(cutlery2.clone().unwrap())
+                        .await;
+                }
+            }
+            svc.data.lock().unwrap().state = "thinking".to_string();
+        }
+        sleep(Duration::from_millis(100)).await;
+    }
+}
+
+/// Passes left or right cutlery to another philosopher
+async fn pass_cutlery(svc: Svc, side: String) -> Response {
+    println!("passing cutlery.");
+    let pos;
+    if side == "left".to_owned() {
+        pos = 1
+    } else if side == "right".to_owned() {
+        pos = 0
+    } else {
+        return Response::NotFound;
+    }
+    let mut cutlery = svc.data.lock().unwrap().owned_cutlery[pos].clone().unwrap();
+    let response = cutlery.put_down().await;
+    if response == Response::Success {
+        let mut id;
+        let last_id;
+        {
+            let data = svc.data.lock().unwrap();
+            id = data.id;
+            last_id = data.restaurant.phillosophers.len();
+        }
+        if side == "left" {
+            id += 1;
+            if id == last_id {
+                id = 0
+            }
+        } else {
+            if id == 0 {
+                id = last_id - 1
+            } else {
+                id -= 1;
+            }
+        }
+
+        let mut neighbor: Node = svc.data.lock().unwrap().restaurant.phillosophers[id].clone();
+        let pass_response = neighbor.receive_cutlery(cutlery, side).await;
+        if pass_response == Response::Success {
+            svc.data.lock().unwrap().owned_cutlery[pos] = None;
+            return Response::Success;
+        }
+    }
+    Response::Failure("Couldn't pass the cutlery to the neighbor!".to_string())
+}
+/// Request missing cutlery from neighboring philosophers
+async fn request_cutlery(svc: Svc) -> Response {
+    println!("requesting cutlery.");
+    // check for needed cutlery
+    let owned_cutlery = svc.data.lock().unwrap().owned_cutlery.clone();
+    let mut left_id;
+    let mut right_id;
+    let last_id;
+    {
+        let data = svc.data.lock().unwrap();
+        left_id = data.id;
+        right_id = data.id;
+        last_id = data.restaurant.phillosophers.len();
+    }
+    left_id += 1;
+    if left_id == last_id {
+        left_id = 0
+    }
+    if right_id == 0 {
+        right_id = last_id - 1
+    } else {
+        right_id -= 1;
+    }
+    //right
+    match owned_cutlery[0] {
+        None => {
+            let mut right_neighbor: Node =
+                svc.data.lock().unwrap().restaurant.phillosophers[right_id].clone();
+            let right_response = right_neighbor
+                .receive_request(right_neighbor.clone(), "left".to_string())
+                .await;
+        }
+        Some(_) => (),
+    }
+    //left
+    match owned_cutlery[1] {
+        None => {
+            let mut left_neighbor: Node =
+                svc.data.lock().unwrap().restaurant.phillosophers[left_id].clone();
+            let left_response = left_neighbor
+                .receive_request(left_neighbor.clone(), "right".to_string())
+                .await;
+        }
+        Some(_) => (),
+    }
+    Response::Success
 }
 
 impl Calls for Svc {
@@ -84,6 +250,127 @@ impl Calls for Svc {
         let restaurant = Restaurant::from_bytes(_buf.into());
         println!("Received restaurant update: {:?}", restaurant);
         data.restaurant = restaurant;
+        Response::Success
+    }
+
+    async fn initialise(&mut self, id: usize) -> Response {
+        self.data.lock().unwrap().id = id;
+        let data = self.data.lock().unwrap().public_data.clone();
+        if id < (self.data.lock().unwrap().restaurant.phillosophers.len() - 1) {
+            let mut cutlery1 = self.data.lock().unwrap().restaurant.cutlery[id].clone();
+            let response2 = cutlery1.pick_up(data.clone()).await;
+            match response2 {
+                Response::Success => self.data.lock().unwrap().owned_cutlery[1] = Some(cutlery1),
+                _ => {
+                    return Response::Failure(
+                        "Couldn't pick up cutlery during initialzing!".to_string(),
+                    )
+                }
+            }
+        }
+        if id == 0 {
+            let mut cutlery2 = self.data.lock().unwrap().restaurant.cutlery
+                [self.data.lock().unwrap().restaurant.cutlery.len() - 1]
+                .clone();
+            let response2 = cutlery2.pick_up(data).await;
+            match response2 {
+                Response::Success => self.data.lock().unwrap().owned_cutlery[0] = Some(cutlery2),
+                _ => {
+                    return Response::Failure(
+                        "Couldn't pick up cutlery during initialzing!".to_string(),
+                    )
+                }
+            }
+        }
+
+        //start Philosopher main logic loop
+        let svc_clone = self.clone();
+        tokio::task::spawn(async move { sit_at_table(svc_clone) });
+        Response::Success
+    }
+
+    ///cleans the cutlery, should be done by philosophers before passing them to someone else
+    async fn clean_cutlery(&mut self, mut cutlery: Node) -> Response {
+        println!("cleaning...");
+        let response = cutlery.clean_cutlery(cutlery.clone()).await;
+        response
+    }
+
+    ///makes the cutlery dirty, should happen when philosophers eat
+    async fn use_cutlery(&mut self, mut cutlery: Node) -> Response {
+        println!("om nom nom...");
+        let response = cutlery.use_cutlery(cutlery.clone()).await;
+        response
+    }
+
+    /// Receives left or right cutlery from another philosopher
+    async fn receive_cutlery(&mut self, mut cutlery: Node, side: String) -> Response {
+        println!("Thanks!");
+        let pos1;
+        let pos2;
+        if side == "left".to_owned() {
+            pos1 = 1;
+            pos2 = 0;
+        } else if side == "right".to_owned() {
+            pos1 = 0;
+            pos2 = 1;
+        } else {
+            return Response::NotFound;
+        }
+        let public_data = self.data.lock().unwrap().public_data.clone();
+        let response = cutlery.pick_up(public_data).await;
+        if response == Response::Success {
+            let mut data = self.data.lock().unwrap();
+            data.owned_cutlery[pos1] = Some(cutlery);
+            if let Some(_) = data.owned_cutlery[pos2] {
+                data.state = "eating".to_string()
+            }
+            return Response::Success;
+        }
+        Response::Failure("Couldn't receive cutlery!".to_string())
+    }
+
+    /// Receive a request for cutlery from neighboring philosophers
+    async fn receive_request(&mut self, philosopher: Node, side: String) -> Response {
+        println!("Lets see...");
+
+        let pos;
+        if side == "left".to_owned() {
+            pos = 1
+        } else if side == "right".to_owned() {
+            pos = 0
+        } else {
+            return Response::NotFound;
+        }
+        let mut cutlery = self.data.lock().unwrap().owned_cutlery[pos]
+            .clone()
+            .unwrap();
+        match cutlery.is_dirty().await {
+            Response::Return(result) => {
+                let is_dirty: &str = str::from_utf8(&result).unwrap();
+                match is_dirty {
+                    "true" => {
+                        if self.data.lock().unwrap().state.clone() != "eating" {
+                            cutlery.clean_cutlery(cutlery.clone()).await;
+                            return pass_cutlery(self.clone(), side).await;
+                        }
+                    }
+                    "false" => {
+                        if self.data.lock().unwrap().state.clone() != "thinking" {
+                            self.data.lock().unwrap().remembered_requests[pos] = Some(philosopher);
+                        }
+                    }
+                    _ => {
+                        return Response::Failure(
+                            "Didn't receive valid resonse from is_dirty!".to_string(),
+                        )
+                    }
+                }
+            }
+            _ => {
+                return Response::Failure("Didn't receive valid resonse from is_dirty!".to_string())
+            }
+        }
         Response::Success
     }
 }

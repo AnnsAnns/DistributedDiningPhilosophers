@@ -1,0 +1,51 @@
+<diagram program="umletino" version="15.1"><zoom_level>10</zoom_level><element><id>UMLState</id><coordinates><x>290</x><y>140</y><w>260</w><h>60</h></coordinates><panel_attributes>thinking
+--
+valign=top</panel_attributes><additional_attributes></additional_attributes></element><element><id>UMLSpecialState</id><coordinates><x>130</x><y>160</y><w>20</w><h>20</h></coordinates><panel_attributes>type=initial</panel_attributes><additional_attributes></additional_attributes></element><element><id>Relation</id><coordinates><x>140</x><y>150</y><w>170</w><h>50</h></coordinates><panel_attributes>lt=-&gt;
+initial dirty fork
+unique ID</panel_attributes><additional_attributes>10;20;150;20</additional_attributes></element><element><id>UMLState</id><coordinates><x>290</x><y>360</y><w>260</w><h>80</h></coordinates><panel_attributes>eating
+--
+entry / dirty(cutlery1), dirty(cutlery2)
+exit / pass cleaned cutlery to 
+remembered requests
+
+valign=top</panel_attributes><additional_attributes></additional_attributes></element><element><id>UMLState</id><coordinates><x>290</x><y>250</y><w>260</w><h>60</h></coordinates><panel_attributes>hungry
+--
+valign=top
+entry / request missing cutlery</panel_attributes><additional_attributes></additional_attributes></element><element><id>Relation</id><coordinates><x>510</x><y>100</y><w>280</w><h>90</h></coordinates><panel_attributes>lt=-&gt;
+
+
+Neighbors Request [cutlery.is_dirty] /
+cutlery.clean(), pass_cutlery()
+cbase=r</panel_attributes><additional_attributes>10;40;10;20;70;20;70;70;40;70</additional_attributes></element><element><id>Relation</id><coordinates><x>510</x><y>210</y><w>280</w><h>90</h></coordinates><panel_attributes>lt=-&gt;
+
+
+Neighbors Request [cutlery.is_dirty] /
+cutlery.clean(), pass_cutlery()
+cbase=r</panel_attributes><additional_attributes>10;40;10;20;70;20;70;70;40;70</additional_attributes></element><element><id>Relation</id><coordinates><x>310</x><y>190</y><w>130</w><h>80</h></coordinates><panel_attributes>lt=-&gt;
+small random timer
+cbase=l</panel_attributes><additional_attributes>110;10;110;60</additional_attributes></element><element><id>Relation</id><coordinates><x>40</x><y>250</y><w>270</w><h>70</h></coordinates><panel_attributes>lt=-&gt;
+Neighbors Request [cutlery.is_clean] /
+remember_request()
+cbase=l</panel_attributes><additional_attributes>250;10;220;10;220;50;250;50</additional_attributes></element><element><id>Relation</id><coordinates><x>410</x><y>300</y><w>180</w><h>80</h></coordinates><panel_attributes>lt=-&gt;
+owns both adjacent cutleries</panel_attributes><additional_attributes>10;10;10;60</additional_attributes></element><element><id>Relation</id><coordinates><x>130</x><y>370</y><w>180</w><h>70</h></coordinates><panel_attributes>lt=-&gt;
+Neighbors Request /
+remember_request()
+cbase=l</panel_attributes><additional_attributes>160;10;130;10;130;50;160;50</additional_attributes></element><element><id>Relation</id><coordinates><x>410</x><y>90</y><w>610</w><h>380</h></coordinates><panel_attributes>lt=-&gt;
+
+
+
+
+
+
+
+
+
+
+
+
+eat finite time                                                                                     	 	 
+cbase=d</panel_attributes><additional_attributes>10;350;10;360;420;360;420;10;10;10;10;50</additional_attributes></element><element><id>UMLNote</id><coordinates><x>60</x><y>40</y><w>310</w><h>70</h></coordinates><panel_attributes>Cutlery wird immer zwischen 2 Philosophen geteilt,
+initial wird die geteilte cutlery jeweils dirty an den
+Philosophen mit der niedrigeren ID der 2 gegeben
+um einen zyklischen Start zu verhindern. 
+bg=pink</panel_attributes><additional_attributes></additional_attributes></element></diagram>

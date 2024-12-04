@@ -1,10 +1,11 @@
-
-
 use std::error::Error;
 
-use tokio::{io::{AsyncReadExt, AsyncWriteExt}, net::TcpStream};
+use tokio::{
+    io::{AsyncReadExt, AsyncWriteExt},
+    net::TcpStream,
+};
 
-use crate::COMMAND_LEN;
+use crate::{node::Node, COMMAND_LEN};
 
 /// Response from a call
 /// - **Success**: The call was successful
@@ -24,7 +25,15 @@ pub enum Response {
 #[derive(serde::Deserialize, serde::Serialize, Debug)]
 pub enum Commands {
     Register(Vec<u8>), // Register Nodes with the network, e.g. waiter
-    Info, // Request info about a node, e.g. waiter
+    Info,              // Request info about a node, e.g. waiter
+    Initialise(usize),
+    CleanCutlery(Node), // Cleans Cutlery
+    UseCutlery(Node),   // Makes Cutlery dirty by being used to eat
+    IsDirty,
+    ReceiveCutlery(Node, String), // A philosoph receivs a piece of cutlery from another philosoph
+    ReceiveRequest(Node, String), // A philosopher receives a request for a piece of cutlery they are holding
+    PickUp(Node),
+    PutDown,
 }
 
 /// Trait for a node that can be called
@@ -42,12 +51,58 @@ pub trait Calls {
     async fn info(&mut self) -> Response {
         Response::NotFound
     }
+    // seats every philosopher
+    async fn initialise(&mut self, _id: usize) -> Response {
+        Response::NotFound
+    }
+    /// Cleans the cutlery, should be done by philosophers before passing them to someone else
+    async fn clean_cutlery(&mut self, _cutlery: Node) -> Response {
+        Response::NotFound
+    }
+
+    /// Makes the cutlery dirty, should happen when philosophers eat
+    async fn use_cutlery(&mut self, _cutlery: Node) -> Response {
+        Response::NotFound
+    }
+
+    ///checks if the cutlery is dirty
+    async fn is_dirty(&mut self) -> Response {
+        Response::NotFound
+    }
+
+    /// Receive a request for cutlery from neighboring philosophers
+    async fn receive_request(&mut self, _philosopher: Node, _side: String) -> Response {
+        Response::NotFound
+    }
+
+    /// Receives left or right cutlery from another philosopher
+    async fn receive_cutlery(&mut self, _cutlery: Node, _side: String) -> Response {
+        Response::NotFound
+    }
+    /// picks up the cutlery, making it owned by the philosopher doing so
+    async fn pick_up(&mut self, _philosopher: Node) -> Response {
+        Response::NotFound
+    }
+    /// puts down the cutlery, removing ownership
+    async fn put_down(&mut self) -> Response {
+        Response::NotFound
+    }
 
     /// Get call from command
     async fn get_call(&mut self, command: Commands) -> Response {
         match command {
             Commands::Register(buf) => self.register(buf).await,
-            Commands::Info => self.info().await
+            Commands::Info => self.info().await,
+            Commands::Initialise(id) => self.initialise(id).await,
+            Commands::CleanCutlery(cutlery) => self.clean_cutlery(cutlery).await,
+            Commands::UseCutlery(cutlery) => self.use_cutlery(cutlery).await,
+            Commands::IsDirty => self.is_dirty().await,
+            Commands::ReceiveRequest(philosopher, side) => {
+                self.receive_request(philosopher, side).await
+            }
+            Commands::ReceiveCutlery(cutlery, side) => self.receive_cutlery(cutlery, side).await,
+            Commands::PickUp(philosopher) => self.pick_up(philosopher).await,
+            Commands::PutDown => self.put_down().await,
         }
     }
 
@@ -118,7 +173,7 @@ pub trait Calls {
     async fn send_command_to(
         &mut self,
         stream: &mut TcpStream,
-        command: Commands
+        command: Commands,
     ) -> Result<Response, Box<dyn Error>> {
         // Write the command to the stream
         let mut command = command.to_bytes();

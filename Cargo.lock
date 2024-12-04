@@ -766,6 +766,7 @@ dependencies = [
  "http-body-util",
  "hyper",
  "hyper-util",
+ "rand",
  "reqwest",
  "serde",
  "shared_menu",

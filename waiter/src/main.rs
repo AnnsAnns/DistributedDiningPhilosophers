@@ -1,6 +1,7 @@
 use calls::{Calls, Response};
 use node::{Node, RegisterType};
 use restaurant::Restaurant;
+use std::collections::btree_map::Range;
 use std::net::SocketAddr;
 use std::sync::{Arc, Mutex};
 use tokio::net::TcpListener;
@@ -10,6 +11,8 @@ use shared_menu::*;
 #[derive(Debug, Clone)]
 struct Svc {
     restaurant: Arc<Mutex<Restaurant>>,
+    visitors: usize,
+    fully_booked: bool,
 }
 
 #[tokio::main]
@@ -17,6 +20,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     // Get ip and port from env vars
     let ip = std::env::var("WAITER_IP").expect("WAITER_IP env var not set!");
     let port = std::env::var("WAITER_PORT").expect("WAITER_PORT env var not set!");
+    let visitors = std::env::var("VISITORS")
+        .expect("VISITORS env var not set!")
+        .parse::<usize>()
+        .unwrap();
 
     let addr = format!("{}:{}", ip, port).parse::<SocketAddr>()?;
 
@@ -28,6 +35,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
             phillosophers: Vec::new(),
             cutlery: Vec::new(),
         })),
+        visitors,
+        fully_booked: false,
     };
 
     loop {
@@ -36,6 +45,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         let mut svc_clone = svc.clone();
         tokio::task::spawn(async move {
             svc_clone.connection_handler(stream).await;
+            if !svc_clone.fully_booked
+                && svc_clone.visitors == svc_clone.restaurant.lock().unwrap().phillosophers.len()
+                && svc_clone.visitors == svc_clone.restaurant.lock().unwrap().cutlery.len()
+            {
+                svc_clone.fully_booked = true;
+                svc_clone.initialise(0).await;
+            };
         });
     }
 }
@@ -74,7 +90,8 @@ impl Calls for Svc {
                     println!("Response from node: {:?}", response);
                 });
             }
-        }).await;
+        })
+        .await;
 
         Response::Success
     }
@@ -84,5 +101,24 @@ impl Calls for Svc {
         let restaurant = restaurant.lock().expect("closed");
         let restaurant_bytes = restaurant.to_bytes().to_vec();
         Response::Return(restaurant_bytes)
+    }
+
+    async fn initialise(&mut self, _id: usize) -> Response {
+        println!("START INITIALIZING");
+        {
+            let restaurant = self.restaurant.clone();
+            let restaurant = restaurant.lock().unwrap();
+            let mut phillosophers = restaurant.phillosophers.clone();
+            for i in 0..(self.visitors - 1) {
+                let mut phil = phillosophers[i].clone();
+                tokio::task::spawn(async move {
+                    phil.initialise(i).await;
+                });
+            }
+        }
+        let mut last_one = self.restaurant.lock().unwrap().phillosophers[self.visitors - 1].clone();
+        last_one.initialise(self.visitors - 1).await;
+        println!("DONE INITIALIZING");
+        Response::Success
     }
 }
