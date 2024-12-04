@@ -91,21 +91,33 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
 /// two things that we can do if the mutex won't work like this: tokio mutex that can be held across .await or make cutlery not a container but just a field
 /// Philosopher main logic loop
 async fn sit_at_table(mut svc: Svc) {
-    println!("seated.");
     loop {
         //thinking
         if svc.data.lock().unwrap().state == "thinking" {
+            println!("thinking.");
+
             let rnd_sleep = rand::thread_rng().gen_range(1..=3);
             sleep(Duration::from_secs(rnd_sleep)).await;
             svc.data.lock().unwrap().state = "hungry".to_string();
 
             //hungry
+            println!("hungry.");
             let svc_clone = svc.clone();
             request_cutlery(svc_clone).await;
+            {
+                let mut data = svc.data.lock().unwrap();
+                if let Some(_) = data.owned_cutlery[0] {
+                    if let Some(_) = data.owned_cutlery[1] {
+                        data.state = "eating".to_string()
+                    }
+                }
+            }
         }
 
         //eating
         if svc.data.lock().unwrap().state == "eating" {
+            println!("eating.");
+
             let rnd_sleep = rand::thread_rng().gen_range(1..=3);
             sleep(Duration::from_secs(rnd_sleep)).await;
             //pass cutleries if there are open requests
@@ -204,12 +216,15 @@ async fn request_cutlery(svc: Svc) -> Response {
     let mut left_id;
     let mut right_id;
     let last_id;
+    let id;
     {
         let data = svc.data.lock().unwrap();
+        id = data.id;
         left_id = data.id;
         right_id = data.id;
         last_id = data.restaurant.phillosophers.len();
     }
+
     left_id += 1;
     if left_id == last_id {
         left_id = 0
@@ -219,6 +234,7 @@ async fn request_cutlery(svc: Svc) -> Response {
     } else {
         right_id -= 1;
     }
+    println!("{} requesting left {} and right {}", id, left_id, right_id);
     //right
     match owned_cutlery[0] {
         None => {
@@ -243,11 +259,10 @@ async fn request_cutlery(svc: Svc) -> Response {
     }
     Response::Success
 }
-
 impl Calls for Svc {
-    async fn register(&mut self, _buf: Vec<u8>) -> Response {
+    async fn register(&mut self, buf: Vec<u8>) -> Response {
         let mut data = self.data.lock().unwrap();
-        let restaurant = Restaurant::from_bytes(_buf.into());
+        let restaurant = Restaurant::from_bytes(buf.into());
         println!("Received restaurant update: {:?}", restaurant);
         data.restaurant = restaurant;
         Response::Success
@@ -256,10 +271,22 @@ impl Calls for Svc {
     async fn initialise(&mut self, id: usize) -> Response {
         self.data.lock().unwrap().id = id;
         let data = self.data.lock().unwrap().public_data.clone();
+        //get info before initializing!
+        //let mut waiter = self.data.lock().unwrap().waiter.clone();
+        //let info_response = waiter.info().await;
+        //match info_response {
+        //    Response::Return(info) => {
+        //        let mut data = self.data.lock().unwrap();
+        //        let restaurant = Restaurant::from_bytes(info.into());
+        //        println!("Received restaurant update: {:?}", restaurant);
+        //        data.restaurant = restaurant;
+        //    }
+        //    _ => return Response::Failure("couldn't initialize".to_string()),
+        //}
         if id < (self.data.lock().unwrap().restaurant.phillosophers.len() - 1) {
             let mut cutlery1 = self.data.lock().unwrap().restaurant.cutlery[id].clone();
-            let response2 = cutlery1.pick_up(data.clone()).await;
-            match response2 {
+            let response1 = cutlery1.pick_up(data.clone()).await;
+            match response1 {
                 Response::Success => self.data.lock().unwrap().owned_cutlery[1] = Some(cutlery1),
                 _ => {
                     return Response::Failure(
@@ -268,10 +295,14 @@ impl Calls for Svc {
                 }
             }
         }
+        println!(
+            "grabbed one...next: {}",
+            self.data.lock().unwrap().restaurant.cutlery.len() - 1
+        );
+
         if id == 0 {
-            let mut cutlery2 = self.data.lock().unwrap().restaurant.cutlery
-                [self.data.lock().unwrap().restaurant.cutlery.len() - 1]
-                .clone();
+            let last_id = self.data.lock().unwrap().restaurant.cutlery.len() - 1;
+            let mut cutlery2 = self.data.lock().unwrap().restaurant.cutlery[last_id].clone();
             let response2 = cutlery2.pick_up(data).await;
             match response2 {
                 Response::Success => self.data.lock().unwrap().owned_cutlery[0] = Some(cutlery2),
@@ -282,10 +313,14 @@ impl Calls for Svc {
                 }
             }
         }
-
+        println!("done grabbing cutlery!");
         //start Philosopher main logic loop
+        self.data.lock().unwrap().state = "thinking".to_string();
         let svc_clone = self.clone();
-        tokio::task::spawn(async move { sit_at_table(svc_clone) });
+        tokio::task::spawn(async move {
+            println!("seated.");
+            sit_at_table(svc_clone).await;
+        });
         Response::Success
     }
 
@@ -342,9 +377,14 @@ impl Calls for Svc {
         } else {
             return Response::NotFound;
         }
-        let mut cutlery = self.data.lock().unwrap().owned_cutlery[pos]
-            .clone()
-            .unwrap();
+        let opt_cutlery = self.data.lock().unwrap().owned_cutlery[pos].clone(); //panicked while unwrapping this multiple times
+        let mut cutlery = match opt_cutlery {
+            None => {
+                println! {"Couldn't find cutlery I was supposed to have!"}
+                return Response::Failure("verloren!".to_string());
+            }
+            Some(cutl) => cutl,
+        };
         match cutlery.is_dirty().await {
             Response::Return(result) => {
                 let is_dirty: &str = str::from_utf8(&result).unwrap();

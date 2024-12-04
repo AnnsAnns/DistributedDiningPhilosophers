@@ -75,6 +75,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
 impl Calls for Svc {
     ///cleans the cutlery, should be done by philosophers before passing them to someone else
     async fn clean_cutlery(&mut self, _cutlery: Node) -> Response {
+        println!("cleaned");
+
         let mut data = self.data.lock().unwrap();
         data.dirty = false;
 
@@ -82,12 +84,14 @@ impl Calls for Svc {
     }
     ///makes the cutlery dirty, should happen when philosophers eat
     async fn use_cutlery(&mut self, _cutlery: Node) -> Response {
+        println!("used to eat");
         let mut data = self.data.lock().unwrap();
         data.dirty = true;
 
         Response::Success
     }
     async fn pick_up(&mut self, philosopher: Node) -> Response {
+        println!("picked up by {}", philosopher.username);
         let mut data = self.data.lock().unwrap();
         match data.in_use_by {
             Some(_) => Response::Failure("No nabbing allowed!".to_string()),
@@ -98,11 +102,13 @@ impl Calls for Svc {
         }
     }
     async fn put_down(&mut self) -> Response {
+        println!("put down.");
         let mut data = self.data.lock().unwrap();
         data.in_use_by = None;
         Response::Success
     }
     async fn is_dirty(&mut self) -> Response {
+        println!("checked for dirt.");
         let data = self.data.lock().unwrap();
         match data.dirty {
             true => Response::Return("true".as_bytes().to_vec()),
