@@ -100,12 +100,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
 /// Philosopher main logic loop
 async fn sit_at_table(mut svc: Svc) {
     loop {
-        println!("state: {:?}", PhilosopherStates::Thinking);
         //thinking
         if matches!(svc.data.lock().unwrap().state, PhilosopherStates::Thinking) {
             let rnd_sleep = rand::thread_rng().gen_range(1..=3);
             sleep(Duration::from_secs(rnd_sleep)).await;
             svc.data.lock().unwrap().state = PhilosopherStates::Hungry;
+            println!("state: {:?}", PhilosopherStates::Hungry);
         }
         //hungry
         if matches!(svc.data.lock().unwrap().state, PhilosopherStates::Hungry) {
@@ -115,7 +115,8 @@ async fn sit_at_table(mut svc: Svc) {
                 let mut data = svc.data.lock().unwrap();
                 if let Some(_) = data.owned_cutlery[0] {
                     if let Some(_) = data.owned_cutlery[1] {
-                        data.state = PhilosopherStates::Eating
+                        data.state = PhilosopherStates::Eating;
+                        println!("state: {:?}", PhilosopherStates::Eating);
                     }
                 }
             }
@@ -130,6 +131,7 @@ async fn sit_at_table(mut svc: Svc) {
             let request1 = svc.data.lock().unwrap().remembered_requests[0].clone();
             match request1 {
                 Some(_) => {
+                    println!("remembered a request for right cutlery");
                     cutlery1
                         .clone()
                         .unwrap()
@@ -149,6 +151,7 @@ async fn sit_at_table(mut svc: Svc) {
             let request2 = svc.data.lock().unwrap().remembered_requests[1].clone();
             match request2 {
                 Some(_) => {
+                    println!("remembered a request for left cutlery");
                     cutlery2
                         .clone()
                         .unwrap()
@@ -165,8 +168,9 @@ async fn sit_at_table(mut svc: Svc) {
                 }
             }
             svc.data.lock().unwrap().state = PhilosopherStates::Thinking;
+            println!("state: {:?}", PhilosopherStates::Thinking);
         }
-        sleep(Duration::from_millis(20000)).await;
+        sleep(Duration::from_millis(2000)).await;
     }
 }
 
@@ -190,23 +194,26 @@ async fn pass_cutlery(svc: Svc, side: String) -> Response {
             id = data.id;
             last_id = data.restaurant.phillosophers.len();
         }
+        let neighbors_side;
         if side == "left" {
             id += 1;
             if id == last_id {
                 id = 0
             }
+            neighbors_side = "right".to_string();
         } else {
             if id == 0 {
                 id = last_id - 1
             } else {
                 id -= 1;
             }
+            neighbors_side = "left".to_string();
         }
 
         let mut neighbor: Node = svc.data.lock().unwrap().restaurant.phillosophers[id].clone();
         println!("passing cutlery {} to {:?}.", side, neighbor);
 
-        let pass_response = neighbor.receive_cutlery(cutlery, side).await;
+        let pass_response = neighbor.receive_cutlery(cutlery, neighbors_side).await;
         if pass_response == Response::Success {
             svc.data.lock().unwrap().owned_cutlery[pos] = None;
             return Response::Success;
@@ -322,6 +329,7 @@ impl Calls for Svc {
         println!("done grabbing cutlery!");
         //start Philosopher main logic loop
         self.data.lock().unwrap().state = PhilosopherStates::Thinking;
+        println!("state: {:?}", PhilosopherStates::Thinking);
         let svc_clone = self.clone();
         tokio::task::spawn(async move {
             println!("seated.");
@@ -346,7 +354,7 @@ impl Calls for Svc {
 
     /// Receives left or right cutlery from another philosopher
     async fn receive_cutlery(&mut self, mut cutlery: Node, side: String) -> Response {
-        println!("Thanks!");
+        println!("received cutlery, {}", side);
         let pos1;
         let pos2;
         if side == "left".to_owned() {
@@ -364,7 +372,8 @@ impl Calls for Svc {
             let mut data = self.data.lock().unwrap();
             data.owned_cutlery[pos1] = Some(cutlery);
             if let Some(_) = data.owned_cutlery[pos2] {
-                data.state = PhilosopherStates::Eating
+                data.state = PhilosopherStates::Eating;
+                println!("state: {:?}", PhilosopherStates::Eating);
             }
             return Response::Success;
         }
@@ -382,7 +391,10 @@ impl Calls for Svc {
             return Response::NotFound;
         }
         let opt_cutlery = self.data.lock().unwrap().owned_cutlery[pos].clone(); //panicked while unwrapping this multiple times
-        println!("received request, my cutlery: {:?}", opt_cutlery);
+        println!(
+            "received request, my cutlery: {:?}",
+            self.data.lock().unwrap().owned_cutlery
+        );
         let mut cutlery = match opt_cutlery {
             None => {
                 println! {"Couldn't find cutlery I was supposed to have!"}
