@@ -50,7 +50,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
                 && svc_clone.visitors == svc_clone.restaurant.lock().unwrap().cutlery.len()
             {
                 svc_clone.fully_booked = true;
-                svc_clone.initialise(0).await;
+                svc_clone.initialise(vec![0], 0).await;
             };
         });
     }
@@ -103,21 +103,24 @@ impl Calls for Svc {
         Response::Return(restaurant_bytes)
     }
 
-    async fn initialise(&mut self, _id: usize) -> Response {
+    async fn initialise(&mut self, _buf: Vec<u8>, _id: usize) -> Response {
         println!("START INITIALIZING");
         {
             let restaurant = self.restaurant.clone();
             let restaurant = restaurant.lock().unwrap();
-            let mut phillosophers = restaurant.phillosophers.clone();
+            let restaurant_bytes = restaurant.to_bytes().to_vec();
+            let phillosophers = restaurant.phillosophers.clone();
             for i in 0..(self.visitors - 1) {
                 let mut phil = phillosophers[i].clone();
+                let info = restaurant_bytes.clone();
                 tokio::task::spawn(async move {
-                    phil.initialise(i).await;
+                    phil.initialise(info, i).await;
                 });
             }
         }
         let mut last_one = self.restaurant.lock().unwrap().phillosophers[self.visitors - 1].clone();
-        last_one.initialise(self.visitors - 1).await;
+        let last_info = self.restaurant.lock().unwrap().to_bytes().to_vec();
+        last_one.initialise(last_info, self.visitors - 1).await;
         println!("DONE INITIALIZING");
         Response::Success
     }

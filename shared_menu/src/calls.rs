@@ -26,7 +26,7 @@ pub enum Response {
 pub enum Commands {
     Register(Vec<u8>), // Register Nodes with the network, e.g. waiter
     Info,              // Request info about a node, e.g. waiter
-    Initialise(usize),
+    Initialise(Vec<u8>, usize),
     CleanCutlery(Node), // Cleans Cutlery
     UseCutlery(Node),   // Makes Cutlery dirty by being used to eat
     IsDirty,
@@ -52,7 +52,7 @@ pub trait Calls {
         Response::NotFound
     }
     // seats every philosopher
-    async fn initialise(&mut self, _id: usize) -> Response {
+    async fn initialise(&mut self, _buf: Vec<u8>, _id: usize) -> Response {
         Response::NotFound
     }
     /// Cleans the cutlery, should be done by philosophers before passing them to someone else
@@ -93,7 +93,7 @@ pub trait Calls {
         match command {
             Commands::Register(buf) => self.register(buf).await,
             Commands::Info => self.info().await,
-            Commands::Initialise(id) => self.initialise(id).await,
+            Commands::Initialise(buf, id) => self.initialise(buf, id).await,
             Commands::CleanCutlery(cutlery) => self.clean_cutlery(cutlery).await,
             Commands::UseCutlery(cutlery) => self.use_cutlery(cutlery).await,
             Commands::IsDirty => self.is_dirty().await,

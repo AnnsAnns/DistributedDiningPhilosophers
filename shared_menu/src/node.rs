@@ -53,8 +53,8 @@ impl Calls for Node {
     async fn info(&mut self) -> Response {
         self.puppet_action(Commands::Info).await
     }
-    async fn initialise(&mut self, id: usize) -> Response {
-        self.puppet_action(Commands::Initialise(id)).await
+    async fn initialise(&mut self, buf: Vec<u8>, id: usize) -> Response {
+        self.puppet_action(Commands::Initialise(buf, id)).await
     }
     async fn clean_cutlery(&mut self, cutlery: Node) -> Response {
         self.puppet_action(Commands::CleanCutlery(cutlery)).await

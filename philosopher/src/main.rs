@@ -13,11 +13,19 @@ use tokio::{net::TcpListener, time::sleep};
 use shared_menu::*;
 
 #[derive(Debug, Clone)]
+pub enum PhilosopherStates {
+    Initializing,
+    Thinking,
+    Hungry,
+    Eating,
+}
+
+#[derive(Debug, Clone)]
 struct Philosopher {
     pub public_data: Node,
     #[allow(dead_code)]
     //can be 'thinking', 'hungry' or 'eating'
-    pub state: String,
+    pub state: PhilosopherStates,
     //right 0, left 1
     pub owned_cutlery: Vec<Option<Node>>,
     //right 0, left 1
@@ -53,7 +61,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
             port,
             of_type: RegisterType::Philosopher,
         },
-        state: "".to_string(),
+        state: PhilosopherStates::Initializing,
         owned_cutlery: vec![None; 2],
         remembered_requests: vec![None; 2],
         id: 0,
@@ -92,32 +100,29 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
 /// Philosopher main logic loop
 async fn sit_at_table(mut svc: Svc) {
     loop {
+        println!("state: {:?}", PhilosopherStates::Thinking);
         //thinking
-        if svc.data.lock().unwrap().state == "thinking" {
-            println!("thinking.");
-
+        if matches!(svc.data.lock().unwrap().state, PhilosopherStates::Thinking) {
             let rnd_sleep = rand::thread_rng().gen_range(1..=3);
             sleep(Duration::from_secs(rnd_sleep)).await;
-            svc.data.lock().unwrap().state = "hungry".to_string();
-
-            //hungry
-            println!("hungry.");
+            svc.data.lock().unwrap().state = PhilosopherStates::Hungry;
+        }
+        //hungry
+        if matches!(svc.data.lock().unwrap().state, PhilosopherStates::Hungry) {
             let svc_clone = svc.clone();
             request_cutlery(svc_clone).await;
             {
                 let mut data = svc.data.lock().unwrap();
                 if let Some(_) = data.owned_cutlery[0] {
                     if let Some(_) = data.owned_cutlery[1] {
-                        data.state = "eating".to_string()
+                        data.state = PhilosopherStates::Eating
                     }
                 }
             }
         }
 
         //eating
-        if svc.data.lock().unwrap().state == "eating" {
-            println!("eating.");
-
+        if matches!(svc.data.lock().unwrap().state, PhilosopherStates::Eating) {
             let rnd_sleep = rand::thread_rng().gen_range(1..=3);
             sleep(Duration::from_secs(rnd_sleep)).await;
             //pass cutleries if there are open requests
@@ -159,15 +164,14 @@ async fn sit_at_table(mut svc: Svc) {
                         .await;
                 }
             }
-            svc.data.lock().unwrap().state = "thinking".to_string();
+            svc.data.lock().unwrap().state = PhilosopherStates::Thinking;
         }
-        sleep(Duration::from_millis(100)).await;
+        sleep(Duration::from_millis(20000)).await;
     }
 }
 
 /// Passes left or right cutlery to another philosopher
 async fn pass_cutlery(svc: Svc, side: String) -> Response {
-    println!("passing cutlery.");
     let pos;
     if side == "left".to_owned() {
         pos = 1
@@ -200,6 +204,8 @@ async fn pass_cutlery(svc: Svc, side: String) -> Response {
         }
 
         let mut neighbor: Node = svc.data.lock().unwrap().restaurant.phillosophers[id].clone();
+        println!("passing cutlery {} to {:?}.", side, neighbor);
+
         let pass_response = neighbor.receive_cutlery(cutlery, side).await;
         if pass_response == Response::Success {
             svc.data.lock().unwrap().owned_cutlery[pos] = None;
@@ -234,7 +240,11 @@ async fn request_cutlery(svc: Svc) -> Response {
     } else {
         right_id -= 1;
     }
-    println!("{} requesting left {} and right {}", id, left_id, right_id);
+    println!(
+        "{} requesting left {} and right {}, I have: {:?}",
+        id, left_id, right_id, owned_cutlery
+    );
+
     //right
     match owned_cutlery[0] {
         None => {
@@ -268,29 +278,25 @@ impl Calls for Svc {
         Response::Success
     }
 
-    async fn initialise(&mut self, id: usize) -> Response {
-        self.data.lock().unwrap().id = id;
-        let data = self.data.lock().unwrap().public_data.clone();
+    async fn initialise(&mut self, buf: Vec<u8>, id: usize) -> Response {
         //get info before initializing!
-        //let mut waiter = self.data.lock().unwrap().waiter.clone();
-        //let info_response = waiter.info().await;
-        //match info_response {
-        //    Response::Return(info) => {
-        //        let mut data = self.data.lock().unwrap();
-        //        let restaurant = Restaurant::from_bytes(info.into());
-        //        println!("Received restaurant update: {:?}", restaurant);
-        //        data.restaurant = restaurant;
-        //    }
-        //    _ => return Response::Failure("couldn't initialize".to_string()),
-        //}
+        {
+            let mut data = self.data.lock().unwrap();
+            let restaurant = Restaurant::from_bytes(buf.into());
+            data.restaurant = restaurant;
+        }
+
+        self.data.lock().unwrap().id = id;
+        let personal_node = self.data.lock().unwrap().public_data.clone();
+
         if id < (self.data.lock().unwrap().restaurant.phillosophers.len() - 1) {
             let mut cutlery1 = self.data.lock().unwrap().restaurant.cutlery[id].clone();
-            let response1 = cutlery1.pick_up(data.clone()).await;
+            let response1 = cutlery1.pick_up(personal_node.clone()).await;
             match response1 {
                 Response::Success => self.data.lock().unwrap().owned_cutlery[1] = Some(cutlery1),
                 _ => {
                     return Response::Failure(
-                        "Couldn't pick up cutlery during initialzing!".to_string(),
+                        "Couldn't pick up cutlery during initializing!".to_string(),
                     )
                 }
             }
@@ -303,19 +309,19 @@ impl Calls for Svc {
         if id == 0 {
             let last_id = self.data.lock().unwrap().restaurant.cutlery.len() - 1;
             let mut cutlery2 = self.data.lock().unwrap().restaurant.cutlery[last_id].clone();
-            let response2 = cutlery2.pick_up(data).await;
+            let response2 = cutlery2.pick_up(personal_node).await;
             match response2 {
                 Response::Success => self.data.lock().unwrap().owned_cutlery[0] = Some(cutlery2),
                 _ => {
                     return Response::Failure(
-                        "Couldn't pick up cutlery during initialzing!".to_string(),
+                        "Couldn't pick up cutlery during initializing!".to_string(),
                     )
                 }
             }
         }
         println!("done grabbing cutlery!");
         //start Philosopher main logic loop
-        self.data.lock().unwrap().state = "thinking".to_string();
+        self.data.lock().unwrap().state = PhilosopherStates::Thinking;
         let svc_clone = self.clone();
         tokio::task::spawn(async move {
             println!("seated.");
@@ -358,7 +364,7 @@ impl Calls for Svc {
             let mut data = self.data.lock().unwrap();
             data.owned_cutlery[pos1] = Some(cutlery);
             if let Some(_) = data.owned_cutlery[pos2] {
-                data.state = "eating".to_string()
+                data.state = PhilosopherStates::Eating
             }
             return Response::Success;
         }
@@ -367,8 +373,6 @@ impl Calls for Svc {
 
     /// Receive a request for cutlery from neighboring philosophers
     async fn receive_request(&mut self, philosopher: Node, side: String) -> Response {
-        println!("Lets see...");
-
         let pos;
         if side == "left".to_owned() {
             pos = 1
@@ -378,6 +382,7 @@ impl Calls for Svc {
             return Response::NotFound;
         }
         let opt_cutlery = self.data.lock().unwrap().owned_cutlery[pos].clone(); //panicked while unwrapping this multiple times
+        println!("received request, my cutlery: {:?}", opt_cutlery);
         let mut cutlery = match opt_cutlery {
             None => {
                 println! {"Couldn't find cutlery I was supposed to have!"}
@@ -390,13 +395,13 @@ impl Calls for Svc {
                 let is_dirty: &str = str::from_utf8(&result).unwrap();
                 match is_dirty {
                     "true" => {
-                        if self.data.lock().unwrap().state.clone() != "eating" {
+                        if !matches!(self.data.lock().unwrap().state, PhilosopherStates::Eating) {
                             cutlery.clean_cutlery(cutlery.clone()).await;
                             return pass_cutlery(self.clone(), side).await;
                         }
                     }
                     "false" => {
-                        if self.data.lock().unwrap().state.clone() != "thinking" {
+                        if !matches!(self.data.lock().unwrap().state, PhilosopherStates::Thinking) {
                             self.data.lock().unwrap().remembered_requests[pos] = Some(philosopher);
                         }
                     }
