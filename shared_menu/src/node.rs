@@ -1,4 +1,3 @@
-
 use tokio::net::TcpStream;
 
 use crate::calls::{Calls, Commands, Response};
@@ -27,7 +26,6 @@ impl Node {
     }
 
     pub fn to_bytes(&self) -> Vec<u8> {
-        
         bincode::serialize(&self).unwrap()
     }
 
@@ -52,8 +50,33 @@ impl Calls for Node {
     async fn register(&mut self, buf: Vec<u8>) -> Response {
         self.puppet_action(Commands::Register(buf)).await
     }
-    
     async fn info(&mut self) -> Response {
         self.puppet_action(Commands::Info).await
+    }
+    async fn initialise(&mut self, buf: Vec<u8>, id: usize) -> Response {
+        self.puppet_action(Commands::Initialise(buf, id)).await
+    }
+    async fn clean_cutlery(&mut self, cutlery: Node) -> Response {
+        self.puppet_action(Commands::CleanCutlery(cutlery)).await
+    }
+    async fn use_cutlery(&mut self, cutlery: Node) -> Response {
+        self.puppet_action(Commands::UseCutlery(cutlery)).await
+    }
+    async fn is_dirty(&mut self) -> Response {
+        self.puppet_action(Commands::IsDirty).await
+    }
+    async fn pick_up(&mut self, philosopher: Node) -> Response {
+        self.puppet_action(Commands::PickUp(philosopher)).await
+    }
+    async fn put_down(&mut self) -> Response {
+        self.puppet_action(Commands::PutDown).await
+    }
+    async fn receive_cutlery(&mut self, cutlery: Node, side: String) -> Response {
+        self.puppet_action(Commands::ReceiveCutlery(cutlery, side))
+            .await
+    }
+    async fn receive_request(&mut self, philosopher: Node, side: String) -> Response {
+        self.puppet_action(Commands::ReceiveRequest(philosopher, side))
+            .await
     }
 }
