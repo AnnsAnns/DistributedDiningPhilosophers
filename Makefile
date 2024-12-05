@@ -8,6 +8,9 @@ up:
 start_waiter:
 	@docker-compose up --build waiter
 
+start_philosopher:
+	@docker-compose up --build philosopher
+
 .PHONY: dontcare
 dontcare:
 	docker-compose up
@@ -22,3 +25,9 @@ remove_artifacts:
 .PHONY: rebuild
 rebuild:
 	@docker build . -t base
+
+podman_rebuild:
+	@podman build . -t base
+
+podman_compose_build_waiter:
+	@podman-compose up --build waiter

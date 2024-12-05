@@ -1,103 +1,127 @@
-use bytes::Bytes;
-use http_body_util::{BodyExt, Full};
-use hyper::server::conn::http1;
-use hyper::service::Service;
-use hyper::{body, Method};
-use hyper::{body::Incoming as IncomingBody, Request, Response};
-use hyper_util::rt::TokioIo;
+use calls::{Calls, Response};
+use node::{Node, RegisterType};
+use restaurant::Restaurant;
+use std::collections::btree_map::Range;
+use std::net::SocketAddr;
+use std::sync::{Arc, Mutex};
 use tokio::net::TcpListener;
 
-use std::future::{Future, IntoFuture};
-use std::net::SocketAddr;
-use std::pin::Pin;
-use std::sync::{Arc, Mutex};
-
 use shared_menu::*;
+
+#[derive(Debug, Clone)]
+struct Svc {
+    restaurant: Arc<Mutex<Restaurant>>,
+    visitors: usize,
+    fully_booked: bool,
+}
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     // Get ip and port from env vars
     let ip = std::env::var("WAITER_IP").expect("WAITER_IP env var not set!");
     let port = std::env::var("WAITER_PORT").expect("WAITER_PORT env var not set!");
+    let visitors = std::env::var("VISITORS")
+        .expect("VISITORS env var not set!")
+        .parse::<usize>()
+        .unwrap();
 
     let addr = format!("{}:{}", ip, port).parse::<SocketAddr>()?;
 
     let listener = TcpListener::bind(addr).await?;
-    println!("Listening on http://{}", addr);
+    println!("Listening on {}", addr);
 
     let svc = Svc {
         restaurant: Arc::new(Mutex::new(Restaurant {
             phillosophers: Vec::new(),
             cutlery: Vec::new(),
         })),
+        visitors,
+        fully_booked: false,
     };
 
     loop {
         let (stream, _) = listener.accept().await?;
-        let io = TokioIo::new(stream);
-        let svc_clone = svc.clone();
+        println!("Accepted connection from: {:?}", stream.peer_addr()?);
+        let mut svc_clone = svc.clone();
         tokio::task::spawn(async move {
-            if let Err(err) = http1::Builder::new().serve_connection(io, svc_clone).await {
-                println!("Failed to serve connection: {:?}", err);
-            }
+            svc_clone.connection_handler(stream).await;
+            if !svc_clone.fully_booked
+                && svc_clone.visitors == svc_clone.restaurant.lock().unwrap().phillosophers.len()
+                && svc_clone.visitors == svc_clone.restaurant.lock().unwrap().cutlery.len()
+            {
+                svc_clone.fully_booked = true;
+                svc_clone.initialise(vec![0], 0).await;
+            };
         });
     }
 }
 
-#[derive(Debug, Clone)]
-struct Svc {
-    restaurant: Arc<Mutex<Restaurant>>,
-}
+impl Calls for Svc {
+    async fn register(&mut self, buf: Vec<u8>) -> Response {
+        // Spawn async block to handle the request
+        let restaurant = self.restaurant.clone();
 
-impl Service<Request<IncomingBody>> for Svc {
-    type Response = Response<Full<Bytes>>;
-    type Error = hyper::Error;
-    type Future = Pin<Box<dyn Future<Output = Result<Self::Response, Self::Error>> + Send>>;
+        // Spawn async block to handle the registration request
+        // We have to use tasks here to properly handle the mutex
+        let _ = tokio::task::spawn(async move {
+            println!("Handling registration request!");
+            let node = Node::from_bytes(buf);
+            let mut restaurant = restaurant.lock().unwrap();
+            println!("Registering node: {:?}", node);
+            match node.of_type {
+                RegisterType::Philosopher => restaurant.phillosophers.push(node),
+                RegisterType::Cutlery => restaurant.cutlery.push(node),
+                _ => println!("Unknown node type!"),
+            }
+        })
+        .await;
 
-    fn call(&self, req: Request<IncomingBody>) -> Self::Future {
-        fn mk_response(s: String) -> Result<Response<Full<Bytes>>, hyper::Error> {
-            Ok(Response::builder().body(Full::new(Bytes::from(s))).unwrap())
-        }
-        let res = match (req.method(), req.uri().path()) {
-            (&Method::POST, "/register") => {
-                println!("Registering a new node!");
-
-                // Spawn async block to handle the request
-                let restaurant = self.restaurant.clone();
-
+        // Spawn async block to inform all nodes of new node
+        let restaurant_copy = self.restaurant.clone();
+        let _ = tokio::task::spawn(async move {
+            println!("Informing all nodes of new node!");
+            let restaurant = restaurant_copy.lock().unwrap();
+            let phillosophers = restaurant.phillosophers.clone();
+            for node in phillosophers {
+                let restaurant_bytes = restaurant.clone().to_bytes().to_vec();
                 tokio::task::spawn(async move {
-                    println!("Handling registration request!");
-                    let body = req.collect().await.unwrap().to_bytes();
-                    let node = Node::from_bytes(body);
-                    let mut restaurant = restaurant.lock().unwrap();
-                    println!("Registering node: {:?}", node);
-                    match node.ofType {
-                        RegisterType::Philosopher => restaurant.phillosophers.push(node),
-                        RegisterType::Cutlery => restaurant.cutlery.push(node),
-                    }
+                    let mut node = node.clone();
+                    let response = node.register(restaurant_bytes.clone()).await;
+                    println!("Response from node: {:?}", response);
                 });
+            }
+        })
+        .await;
 
-                mk_response("Registered".into())
-            }
-            (&Method::GET, "/info") => {
-                // Turn restaurant into a byte response
-                let restaurant = self.restaurant.lock().unwrap();
-                let restaurant_copy = restaurant.clone();
-                let restaurant_bytes = restaurant_copy.to_bytes();
-                Ok(Response::builder()
-                    .body(Full::new(restaurant_bytes))
-                    .unwrap())
-            }
-            (&Method::GET, "/") => {
-                let restraurant_copy = self.restaurant.lock().unwrap().clone();
-                mk_response(format!("The current restaurant has {} philosophers and {} cutlery!\n\n\nHere is the raw:\n\n{:#?}",
-                restraurant_copy.phillosophers.len(),
-                restraurant_copy.cutlery.len(),
-                restraurant_copy))
-            }
-            _ => mk_response("Sorry, we don't serve that here!".into()),
-        };
+        Response::Success
+    }
 
-        Box::pin(async { res })
+    async fn info(&mut self) -> Response {
+        let restaurant = self.restaurant.clone();
+        let restaurant = restaurant.lock().expect("closed");
+        let restaurant_bytes = restaurant.to_bytes().to_vec();
+        Response::Return(restaurant_bytes)
+    }
+
+    async fn initialise(&mut self, _buf: Vec<u8>, _id: usize) -> Response {
+        println!("START INITIALIZING");
+        {
+            let restaurant = self.restaurant.clone();
+            let restaurant = restaurant.lock().unwrap();
+            let restaurant_bytes = restaurant.to_bytes().to_vec();
+            let phillosophers = restaurant.phillosophers.clone();
+            for i in 0..(self.visitors - 1) {
+                let mut phil = phillosophers[i].clone();
+                let info = restaurant_bytes.clone();
+                tokio::task::spawn(async move {
+                    phil.initialise(info, i).await;
+                });
+            }
+        }
+        let mut last_one = self.restaurant.lock().unwrap().phillosophers[self.visitors - 1].clone();
+        let last_info = self.restaurant.lock().unwrap().to_bytes().to_vec();
+        last_one.initialise(last_info, self.visitors - 1).await;
+        println!("DONE INITIALIZING");
+        Response::Success
     }
 }

@@ -1,25 +1,22 @@
-use bytes::Bytes;
-use http_body_util::{BodyExt, Full};
-use hyper::server::conn::http1;
-use hyper::service::Service;
-use hyper::{body, Method};
-use hyper::{body::Incoming as IncomingBody, Request, Response};
-use hyper_util::rt::TokioIo;
-use tokio::net::TcpListener;
-
-use std::borrow::Borrow;
-use std::future::{Future, IntoFuture};
-use std::net::SocketAddr;
-use std::pin::Pin;
-use std::sync::{Arc, Mutex};
-
-use tokio::time::{sleep, Duration};
+use calls::{Calls, Response};
+use node::{Node, RegisterType};
+use random_names::{random_cutlery_name, random_port};
 use shared_menu::*;
+use std::sync::{Arc, Mutex};
+use tokio::net::TcpListener;
 
 #[derive(Debug, Clone)]
 struct Cutlery {
     pub public_data: Node,
+    #[allow(dead_code)]
     pub in_use_by: Option<Node>,
+    pub dirty: bool,
+    pub waiter: Node,
+}
+
+#[derive(Debug, Clone)]
+struct Svc {
+    data: Arc<Mutex<Cutlery>>,
 }
 
 #[tokio::main]
@@ -33,69 +30,89 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let addr = format!("{}:{}", ip, port);
 
     let listener = TcpListener::bind(addr.clone()).await?;
-    println!("Listening on http://{} as {}", addr, username);
+    println!("Listening on {} as {}", addr, username);
 
     let data = Cutlery {
         public_data: Node {
             username: username.clone(),
-            IP: ip.clone(),
-            port: port,
-            ofType: RegisterType::Cutlery,
+            ip: ip.clone(),
+            port,
+            of_type: RegisterType::Cutlery,
         },
         in_use_by: None,
+        dirty: true,
+        waiter: Node {
+            username: "waiter".to_string(),
+            ip: waiter_ip.clone(),
+            port: waiter_port.parse().unwrap(),
+            of_type: RegisterType::Waiter,
+        },
     };
-
-    // Register with the waiter at the specified IP and port /register
-    let waiter_addr = format!("{}:{}", waiter_ip, waiter_port);
-    let waiter_addr = format!("http://{}/register", waiter_addr);
-    let client = reqwest::Client::new();
-    let body = data.public_data.to_bytes();
-    println!("Registering with the waiter at: {}", waiter_addr);
-    let res = client
-        .post(&waiter_addr)
-        .body(body)
-        .send()
-        .await?;
-    println!("Registered with the waiter: {:?}", res);
 
     let svc = Svc {
         data: Arc::new(Mutex::new(data)),
     };
 
+    // Register with the waiter
+    println!("Registering with the waiter");
+    let own_data = svc.data.lock().unwrap().public_data.to_bytes();
+    let mut waiter = svc.data.lock().unwrap().waiter.clone();
+
+    let response = waiter.register(own_data.clone()).await;
+    println!("Response from waiter: {:?}", response);
+
+    // Handle incoming connections
     loop {
         let (stream, _) = listener.accept().await?;
-        let io = TokioIo::new(stream);
-        let svc_clone = svc.clone();
+        println!("Accepted connection from: {:?}", stream.peer_addr()?);
+        let mut svc_clone = svc.clone();
         tokio::task::spawn(async move {
-            if let Err(err) = http1::Builder::new().serve_connection(io, svc_clone).await {
-                println!("Failed to serve connection: {:?}", err);
-            }
+            svc_clone.connection_handler(stream).await;
         });
     }
 }
 
-#[derive(Debug, Clone)]
-struct Svc {
-    data: Arc<Mutex<Cutlery>>,
-}
+impl Calls for Svc {
+    ///cleans the cutlery, should be done by philosophers before passing them to someone else
+    async fn clean_cutlery(&mut self, _cutlery: Node) -> Response {
+        println!("cleaned");
 
-impl Service<Request<IncomingBody>> for Svc {
-    type Response = Response<Full<Bytes>>;
-    type Error = hyper::Error;
-    type Future = Pin<Box<dyn Future<Output = Result<Self::Response, Self::Error>> + Send>>;
+        let mut data = self.data.lock().unwrap();
+        data.dirty = false;
 
-    fn call(&self, req: Request<IncomingBody>) -> Self::Future {
-        fn mk_response(s: String) -> Result<Response<Full<Bytes>>, hyper::Error> {
-            Ok(Response::builder().body(Full::new(Bytes::from(s))).unwrap())
-        }
-        let res = match (req.method(), req.uri().path()) {
-            (&Method::GET, "/") => {
-                let data_copy = self.data.lock().unwrap().public_data.clone();
-                mk_response(format!("{:?}", data_copy))
+        Response::Success
+    }
+    ///makes the cutlery dirty, should happen when philosophers eat
+    async fn use_cutlery(&mut self, _cutlery: Node) -> Response {
+        println!("used to eat");
+        let mut data = self.data.lock().unwrap();
+        data.dirty = true;
+
+        Response::Success
+    }
+    async fn pick_up(&mut self, philosopher: Node) -> Response {
+        println!("picked up by {}", philosopher.username);
+        let mut data = self.data.lock().unwrap();
+        match data.in_use_by {
+            Some(_) => Response::Failure("No nabbing allowed!".to_string()),
+            None => {
+                data.in_use_by = Some(philosopher);
+                Response::Success
             }
-            _ => mk_response("Sorry, I am only a fork :(".into()),
-        };
-
-        Box::pin(async { res })
+        }
+    }
+    async fn put_down(&mut self) -> Response {
+        println!("put down.");
+        let mut data = self.data.lock().unwrap();
+        data.in_use_by = None;
+        Response::Success
+    }
+    async fn is_dirty(&mut self) -> Response {
+        println!("checked for dirt.");
+        let data = self.data.lock().unwrap();
+        match data.dirty {
+            true => Response::Return("true".as_bytes().to_vec()),
+            false => Response::Return("false".as_bytes().to_vec()),
+        }
     }
 }

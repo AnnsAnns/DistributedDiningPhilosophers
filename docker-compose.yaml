@@ -1,14 +1,16 @@
 services:
 
   cutlery:
+    depends_on:
+      - waiter
     build: .
     environment:
       IP: "cutlery"
       WAITER_IP: "waiter"
       WAITER_PORT: "3000"
-    entrypoint: ["./cutlery"]
+    entrypoint: [ "./cutlery" ]
     #container_name: cutlery
-    networks: 
+    networks:
       - free_wifi
     deploy:
       mode: replicated
@@ -16,14 +18,16 @@ services:
       endpoint_mode: dnsrr
 
   philosopher:
+    depends_on:
+      - waiter
     build: .
     environment:
       IP: "philosopher"
       WAITER_IP: "waiter"
       WAITER_PORT: "3000"
-    entrypoint: ["./philosopher"]
+    entrypoint: [ "./philosopher" ]
     #container_name: philosopher
-    networks: 
+    networks:
       - free_wifi
     deploy:
       mode: replicated
@@ -36,14 +40,15 @@ services:
     environment:
       WAITER_IP: "172.27.0.2"
       WAITER_PORT: "3000"
+      VISITORS: "3"
     ports:
       - "3000:3000"
-    entrypoint: ["./waiter"]
+    entrypoint: [ "./waiter" ]
     expose:
       - 3000
     container_name: waiter
-    networks: 
-      free_wifi: 
+    networks:
+      free_wifi:
         ipv4_address: 172.27.0.2
 
 networks:
