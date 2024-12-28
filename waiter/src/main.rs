@@ -124,4 +124,8 @@ impl Calls for Svc {
         println!("DONE INITIALIZING");
         Response::Success
     }
+    
+    async fn get_waiter(&self) -> Node {
+        panic!("Either the waiter has dysphoria or this should not be called from the waiter 😛");
+    }
 }

@@ -2,6 +2,7 @@ use calls::{Calls, Response};
 use node::{Node, RegisterType};
 use random_names::{random_cutlery_name, random_port};
 use shared_menu::*;
+use status::CutleryStatus;
 use std::sync::{Arc, Mutex};
 use tokio::net::TcpListener;
 
@@ -9,8 +10,7 @@ use tokio::net::TcpListener;
 struct Cutlery {
     pub public_data: Node,
     #[allow(dead_code)]
-    pub in_use_by: Option<Node>,
-    pub dirty: bool,
+    pub status: CutleryStatus,
     pub waiter: Node,
 }
 
@@ -39,8 +39,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
             port,
             of_type: RegisterType::Cutlery,
         },
-        in_use_by: None,
-        dirty: true,
+        status: CutleryStatus::Clean(None),
         waiter: Node {
             username: "waiter".to_string(),
             ip: waiter_ip.clone(),
@@ -73,12 +72,17 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
 }
 
 impl Calls for Svc {
+    async fn get_waiter(&self) -> Node {
+        let data = self.data.lock().unwrap();
+        data.waiter.clone()
+    }
+
     ///cleans the cutlery, should be done by philosophers before passing them to someone else
     async fn clean_cutlery(&mut self, _cutlery: Node) -> Response {
         println!("cleaned");
 
         let mut data = self.data.lock().unwrap();
-        data.dirty = false;
+        data.status = CutleryStatus::Clean(data.status.is_used());
 
         Response::Success
     }
@@ -86,33 +90,36 @@ impl Calls for Svc {
     async fn use_cutlery(&mut self, _cutlery: Node) -> Response {
         println!("used to eat");
         let mut data = self.data.lock().unwrap();
-        data.dirty = true;
+        data.status = CutleryStatus::Dirty(data.status.is_used());
 
         Response::Success
     }
+    
     async fn pick_up(&mut self, philosopher: Node) -> Response {
         println!("picked up by {}", philosopher.username);
         let mut data = self.data.lock().unwrap();
-        match data.in_use_by {
-            Some(_) => Response::Failure("No nabbing allowed!".to_string()),
-            None => {
-                data.in_use_by = Some(philosopher);
-                Response::Success
-            }
+        if data.status.is_used().is_some() {
+            Response::Failure("No nabbing allowed!".to_string())
+        } else {
+            data.status = CutleryStatus::Clean(Some(philosopher));
+            Response::Success
         }
     }
+    
     async fn put_down(&mut self) -> Response {
         println!("put down.");
         let mut data = self.data.lock().unwrap();
-        data.in_use_by = None;
+        data.status = CutleryStatus::Clean(None);
         Response::Success
     }
+
     async fn is_dirty(&mut self) -> Response {
         println!("checked for dirt.");
         let data = self.data.lock().unwrap();
-        match data.dirty {
-            true => Response::Return("true".as_bytes().to_vec()),
-            false => Response::Return("false".as_bytes().to_vec()),
+        if data.status.is_dirty() {
+            Response::Success
+        } else {
+            Response::Failure("Not dirty".to_string())
         }
     }
 }

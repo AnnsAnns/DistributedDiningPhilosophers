@@ -79,4 +79,7 @@ impl Calls for Node {
         self.puppet_action(Commands::ReceiveRequest(philosopher, side))
             .await
     }
+    async fn get_waiter(&self) -> Node {
+        panic!("Waiter cannot be called on a node that is not yourself");
+    }
 }

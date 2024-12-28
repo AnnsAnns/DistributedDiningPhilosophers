@@ -1,4 +1,5 @@
 use calls::{Calls, Response};
+use status::PhilosopherStates;
 use core::str;
 use node::{Node, RegisterType};
 use rand::{self, Rng};
@@ -11,14 +12,6 @@ use std::{
 use tokio::{net::TcpListener, time::sleep};
 
 use shared_menu::*;
-
-#[derive(Debug, Clone)]
-pub enum PhilosopherStates {
-    Initializing,
-    Thinking,
-    Hungry,
-    Eating,
-}
 
 #[derive(Debug, Clone)]
 struct Philosopher {
@@ -277,6 +270,11 @@ async fn request_cutlery(svc: Svc) -> Response {
     Response::Success
 }
 impl Calls for Svc {
+    async fn get_waiter(&self) -> Node {
+        let data = self.data.lock().unwrap();
+        data.waiter.clone()
+    }
+
     async fn register(&mut self, buf: Vec<u8>) -> Response {
         let mut data = self.data.lock().unwrap();
         let restaurant = Restaurant::from_bytes(buf.into());

@@ -42,6 +42,8 @@ pub enum Commands {
 /// which also dictates the implementation of the `Calls` trait
 #[allow(async_fn_in_trait)]
 pub trait Calls {
+    async fn get_waiter(&self) -> Node;
+
     /// Register a node with the network
     /// The buffer contains the serialized node to be registered
     async fn register(&mut self, _buf: Vec<u8>) -> Response {
