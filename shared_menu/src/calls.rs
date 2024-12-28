@@ -22,11 +22,12 @@ pub enum Response {
 /// Commands that can be sent to a node
 /// This are treated as calls to the node
 /// and are handled by the nodes implementation of the `Calls` trait
+/// @TODO: Switch from Vec<u8> to Vec<Node>
 #[derive(serde::Deserialize, serde::Serialize, Debug)]
 pub enum Commands {
     Register(Vec<u8>), // Register Nodes with the network, e.g. waiter
     Info,              // Request info about a node, e.g. waiter
-    Initialise(Vec<u8>, usize),
+    Initialize(Vec<u8>, usize),
     CleanCutlery(Node), // Cleans Cutlery
     UseCutlery(Node),   // Makes Cutlery dirty by being used to eat
     IsDirty,
@@ -93,7 +94,7 @@ pub trait Calls {
         match command {
             Commands::Register(buf) => self.register(buf).await,
             Commands::Info => self.info().await,
-            Commands::Initialise(buf, id) => self.initialise(buf, id).await,
+            Commands::Initialize(buf, id) => self.initialise(buf, id).await,
             Commands::CleanCutlery(cutlery) => self.clean_cutlery(cutlery).await,
             Commands::UseCutlery(cutlery) => self.use_cutlery(cutlery).await,
             Commands::IsDirty => self.is_dirty().await,
@@ -202,6 +203,10 @@ pub trait Calls {
         println!("Received {} bytes", size);
         let response: Response = bincode::deserialize(&buf).unwrap();
         Ok(response)
+    }
+
+    async fn log(&self, message: &str) {
+        println!("{}", message);
     }
 }
 
