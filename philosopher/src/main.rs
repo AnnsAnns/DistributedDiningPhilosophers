@@ -1,5 +1,5 @@
 use calls::{Calls, Response};
-use status::PhilosopherStates;
+use states::States;
 use core::str;
 use node::{Node, RegisterType};
 use rand::{self, Rng};
@@ -17,8 +17,6 @@ use shared_menu::*;
 struct Philosopher {
     pub public_data: Node,
     #[allow(dead_code)]
-    //can be 'thinking', 'hungry' or 'eating'
-    pub state: PhilosopherStates,
     //right 0, left 1
     pub owned_cutlery: Vec<Option<Node>>,
     //right 0, left 1
@@ -53,8 +51,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
             ip: ip.clone(),
             port,
             of_type: RegisterType::Philosopher,
+            state: States::Initializing,
         },
-        state: PhilosopherStates::Initializing,
         owned_cutlery: vec![None; 2],
         remembered_requests: vec![None; 2],
         id: 0,
@@ -64,6 +62,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
             ip: waiter_ip.clone(),
             port: waiter_port.parse().unwrap(),
             of_type: RegisterType::Waiter,
+            state: States::WaiterActive,
         },
     };
 
@@ -91,32 +90,32 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
 }
 /// two things that we can do if the mutex won't work like this: tokio mutex that can be held across .await or make cutlery not a container but just a field
 /// Philosopher main logic loop
-async fn sit_at_table(mut svc: Svc) {
+async fn sit_at_table(svc: Svc) {
     loop {
         //thinking
-        if matches!(svc.data.lock().unwrap().state, PhilosopherStates::Thinking) {
+        if matches!(svc.data.lock().unwrap().public_data.state, States::PhilosopherThinking) {
             let rnd_sleep = rand::thread_rng().gen_range(1..=3);
             sleep(Duration::from_secs(rnd_sleep)).await;
-            svc.data.lock().unwrap().state = PhilosopherStates::Hungry;
-            println!("state: {:?}", PhilosopherStates::Hungry);
+            svc.data.lock().unwrap().public_data.state = States::PhilosopherHungry;
+            println!("state: {:?}", States::PhilosopherHungry);
         }
         //hungry
-        if matches!(svc.data.lock().unwrap().state, PhilosopherStates::Hungry) {
+        if matches!(svc.data.lock().unwrap().public_data.state, States::PhilosopherHungry) {
             let svc_clone = svc.clone();
             request_cutlery(svc_clone).await;
             {
                 let mut data = svc.data.lock().unwrap();
                 if let Some(_) = data.owned_cutlery[0] {
                     if let Some(_) = data.owned_cutlery[1] {
-                        data.state = PhilosopherStates::Eating;
-                        println!("state: {:?}", PhilosopherStates::Eating);
+                        data.public_data.state = States::PhilosopherEating;
+                        println!("state: {:?}", States::PhilosopherEating);
                     }
                 }
             }
         }
 
         //eating
-        if matches!(svc.data.lock().unwrap().state, PhilosopherStates::Eating) {
+        if matches!(svc.data.lock().unwrap().public_data.state, States::PhilosopherEating) {
             let rnd_sleep = rand::thread_rng().gen_range(1..=3);
             sleep(Duration::from_secs(rnd_sleep)).await;
             //pass cutleries if there are open requests
@@ -160,8 +159,8 @@ async fn sit_at_table(mut svc: Svc) {
                         .await;
                 }
             }
-            svc.data.lock().unwrap().state = PhilosopherStates::Thinking;
-            println!("state: {:?}", PhilosopherStates::Thinking);
+            svc.data.lock().unwrap().public_data.state = States::PhilosopherThinking;
+            println!("state: {:?}", States::PhilosopherThinking);
         }
         sleep(Duration::from_millis(2000)).await;
     }
@@ -326,8 +325,8 @@ impl Calls for Svc {
         }
         println!("done grabbing cutlery!");
         //start Philosopher main logic loop
-        self.data.lock().unwrap().state = PhilosopherStates::Thinking;
-        println!("state: {:?}", PhilosopherStates::Thinking);
+        self.data.lock().unwrap().public_data.state = States::PhilosopherThinking;
+        println!("state: {:?}", States::PhilosopherThinking);
         let svc_clone = self.clone();
         tokio::task::spawn(async move {
             println!("seated.");
@@ -370,8 +369,8 @@ impl Calls for Svc {
             let mut data = self.data.lock().unwrap();
             data.owned_cutlery[pos1] = Some(cutlery);
             if let Some(_) = data.owned_cutlery[pos2] {
-                data.state = PhilosopherStates::Eating;
-                println!("state: {:?}", PhilosopherStates::Eating);
+                data.public_data.state = States::PhilosopherEating;
+                println!("state: {:?}", States::PhilosopherEating);
             }
             return Response::Success;
         }
@@ -402,23 +401,15 @@ impl Calls for Svc {
         };
         match cutlery.is_dirty().await {
             Response::Return(result) => {
-                let is_dirty: &str = str::from_utf8(&result).unwrap();
-                match is_dirty {
-                    "true" => {
-                        if !matches!(self.data.lock().unwrap().state, PhilosopherStates::Eating) {
-                            cutlery.clean_cutlery(cutlery.clone()).await;
-                            return pass_cutlery(self.clone(), side).await;
-                        }
+                let is_dirty: bool = result[0] == 1;
+                if is_dirty {
+                    if !matches!(self.data.lock().unwrap().public_data.state, States::PhilosopherEating) {
+                        cutlery.clean_cutlery(cutlery.clone()).await;
+                        return pass_cutlery(self.clone(), side).await;
                     }
-                    "false" => {
-                        if !matches!(self.data.lock().unwrap().state, PhilosopherStates::Thinking) {
-                            self.data.lock().unwrap().remembered_requests[pos] = Some(philosopher);
-                        }
-                    }
-                    _ => {
-                        return Response::Failure(
-                            "Didn't receive valid resonse from is_dirty!".to_string(),
-                        )
+                } else {
+                    if !matches!(self.data.lock().unwrap().public_data.state, States::PhilosopherThinking) {
+                        self.data.lock().unwrap().remembered_requests[pos] = Some(philosopher);
                     }
                 }
             }

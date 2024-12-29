@@ -2,15 +2,13 @@ use calls::{Calls, Response};
 use node::{Node, RegisterType};
 use random_names::{random_cutlery_name, random_port};
 use shared_menu::*;
-use status::CutleryStatus;
+use states::States;
 use std::sync::{Arc, Mutex};
 use tokio::net::TcpListener;
 
 #[derive(Debug, Clone)]
 struct Cutlery {
     pub public_data: Node,
-    #[allow(dead_code)]
-    pub status: CutleryStatus,
     pub waiter: Node,
 }
 
@@ -38,13 +36,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
             ip: ip.clone(),
             port,
             of_type: RegisterType::Cutlery,
+            state: States::CutleryClean(false),
         },
-        status: CutleryStatus::Clean(None),
         waiter: Node {
             username: "waiter".to_string(),
             ip: waiter_ip.clone(),
             port: waiter_port.parse().unwrap(),
             of_type: RegisterType::Waiter,
+            state: States::WaiterActive,
         },
     };
 
@@ -82,7 +81,7 @@ impl Calls for Svc {
         println!("cleaned");
 
         let mut data = self.data.lock().unwrap();
-        data.status = CutleryStatus::Clean(data.status.is_used());
+        data.public_data.state = States::CutleryClean(data.public_data.state.is_used());
 
         Response::Success
     }
@@ -90,7 +89,7 @@ impl Calls for Svc {
     async fn use_cutlery(&mut self, _cutlery: Node) -> Response {
         println!("used to eat");
         let mut data = self.data.lock().unwrap();
-        data.status = CutleryStatus::Dirty(data.status.is_used());
+        data.public_data.state = States::CutleryDirty(data.public_data.state.is_used());
 
         Response::Success
     }
@@ -98,10 +97,10 @@ impl Calls for Svc {
     async fn pick_up(&mut self, philosopher: Node) -> Response {
         println!("picked up by {}", philosopher.username);
         let mut data = self.data.lock().unwrap();
-        if data.status.is_used().is_some() {
+        if data.public_data.state.is_used() {
             Response::Failure("No nabbing allowed!".to_string())
         } else {
-            data.status = CutleryStatus::Clean(Some(philosopher));
+            data.public_data.state = States::CutleryClean(true);
             Response::Success
         }
     }
@@ -109,17 +108,13 @@ impl Calls for Svc {
     async fn put_down(&mut self) -> Response {
         println!("put down.");
         let mut data = self.data.lock().unwrap();
-        data.status = CutleryStatus::Clean(None);
+        data.public_data.state = States::CutleryClean(false);
         Response::Success
     }
 
     async fn is_dirty(&mut self) -> Response {
         println!("checked for dirt.");
         let data = self.data.lock().unwrap();
-        if data.status.is_dirty() {
-            Response::Success
-        } else {
-            Response::Failure("Not dirty".to_string())
-        }
+        Response::Return(vec![data.public_data.state.is_dirty() as u8])
     }
 }

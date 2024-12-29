@@ -1,6 +1,6 @@
 use tokio::net::TcpStream;
 
-use crate::calls::{Calls, Commands, Response};
+use crate::{calls::{Calls, Commands, Response}, states::States};
 
 /// RegisterType is an enum that represents the type of the node that is being registered.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -17,6 +17,7 @@ pub struct Node {
     pub ip: String,
     pub port: u16,
     pub of_type: RegisterType,
+    pub state: States,
 }
 
 impl Node {

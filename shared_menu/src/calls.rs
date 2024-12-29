@@ -43,6 +43,11 @@ pub enum Commands {
 #[allow(async_fn_in_trait)]
 pub trait Calls {
     async fn get_waiter(&self) -> Node;
+    
+    /// Heartbeat to check if the node is still alive
+    async fn heartbeat(&self) -> Response {
+        Response::Success
+    }
 
     /// Register a node with the network
     /// The buffer contains the serialized node to be registered

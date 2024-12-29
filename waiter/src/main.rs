@@ -4,6 +4,7 @@ use restaurant::Restaurant;
 use std::collections::btree_map::Range;
 use std::net::SocketAddr;
 use std::sync::{Arc, Mutex};
+use std::task;
 use tokio::net::TcpListener;
 
 use shared_menu::*;
@@ -53,6 +54,25 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
                 svc_clone.initialise(vec![0], 0).await;
             };
         });
+    }
+}
+
+impl Svc {
+    async fn heartbeat_check(&self) {
+        let restaurant = self.restaurant.clone();
+        let restaurant = restaurant.lock().unwrap();
+        let phillosophers = restaurant.phillosophers.clone();
+        for phil in phillosophers {
+            match phil.heartbeat().await {
+                Response::Success => {
+                    println!("Philosopher {} is alive!", phil.username);
+                }
+                _ => {
+                    println!("Philosopher {} is not responding!", phil.username);
+                }
+            }
+            
+        }
     }
 }
 
