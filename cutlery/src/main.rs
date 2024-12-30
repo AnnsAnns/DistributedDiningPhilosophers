@@ -124,6 +124,14 @@ impl Calls for Svc {
     
     async fn set_state(&mut self, state: States) -> Response {
         self.data.lock().unwrap().public_data.state = state;
-        Response::Success
+
+        // Inform the waiter about the state change
+        let own_data = self.data.lock().unwrap().public_data.to_bytes();
+        let mut waiter = self.get_waiter().await;
+        waiter.inform_state_update(own_data).await
+    }
+
+    async fn inform_state_update(&mut self, _buf: Vec<u8>) -> Response {
+        Response::Failure("Don't know how to handle this!".to_string())
     }
 }

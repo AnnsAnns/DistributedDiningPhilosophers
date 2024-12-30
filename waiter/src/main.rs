@@ -160,4 +160,36 @@ impl Calls for Svc {
         self.state = state;
         Response::Success 
     }
+
+    async fn inform_state_update(&mut self, buf: Vec<u8>) -> Response {
+        let node = Node::from_bytes(buf);
+
+        println!("Received state update from: {:?}", node);
+
+        let mut restaurant = self.restaurant.lock().unwrap();
+
+        match node.of_type {
+            RegisterType::Philosopher => {
+                let mut phillosophers = restaurant.phillosophers.clone();
+                for phil in phillosophers.iter_mut() {
+                    if phil.username == node.username {
+                        *phil = node.clone();
+                    }
+                }
+                restaurant.phillosophers = phillosophers;
+            }
+            RegisterType::Cutlery => {
+                let mut cutlery = restaurant.cutlery.clone();
+                for cut in cutlery.iter_mut() {
+                    if cut.username == node.username {
+                        *cut = node.clone();
+                    }
+                }
+                restaurant.cutlery = cutlery;
+            }
+            _ => println!("Unknown node type!"),
+        }
+
+        Response::Success
+    }
 }

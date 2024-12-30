@@ -91,4 +91,8 @@ impl Calls for Node {
     async fn set_state(&mut self, state: States) -> Response {
         self.puppet_action(Commands::SetState(state)).await
     }
+
+    async fn inform_state_update(&mut self, buf: Vec<u8>) -> Response {
+        self.puppet_action(Commands::InformStateUpdate(buf)).await
+    }
 }

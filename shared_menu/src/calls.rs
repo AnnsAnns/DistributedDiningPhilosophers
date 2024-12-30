@@ -37,7 +37,7 @@ pub enum Commands {
     PutDown,
     SetState(States),
     GetState,
-    InformStateUpdate(States),
+    InformStateUpdate(Vec<u8>), // Inform about the state of the node including full node data
 }
 
 /// Trait for a node that can be called
@@ -47,6 +47,11 @@ pub enum Commands {
 pub trait Calls {
     /// Get the state of the node
     async fn get_state(&mut self) -> Response;
+
+    /// Informs a node about the state of other nodes
+    async fn inform_state_update(&mut self, _buf: Vec<u8>) -> Response {
+        Response::NotFound
+    }
 
     /// Returns the state of the node as a `States` enum
     /// If the node is not responding, `States::NotResponding` is returned
@@ -117,11 +122,6 @@ pub trait Calls {
         Response::NotFound
     }
 
-    /// Informs the waiter about the state of the node
-    async fn inform_state_update(&mut self, state: States) -> Response {
-        panic!("This method has a cycle in the call stack, reimplement it!!!");
-    }
-
     /// Get call from command
     async fn get_call(&mut self, command: Commands) -> Response {
         match command {
@@ -138,8 +138,8 @@ pub trait Calls {
             Commands::PickUp(philosopher) => self.pick_up(philosopher).await,
             Commands::PutDown => self.put_down().await,
             Commands::SetState(state) => self.set_state(state).await,
-            Commands::InformStateUpdate(state) => self.inform_state_update(state).await,
             Commands::GetState => self.get_state().await,
+            Commands::InformStateUpdate(buf) => self.inform_state_update(buf).await,
         }
     }
 
