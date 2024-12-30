@@ -60,25 +60,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     }
 }
 
-impl Svc {
-    async fn heartbeat_check(&self) {
-        let restaurant = self.restaurant.clone();
-        let restaurant = restaurant.lock().unwrap();
-        let phillosophers = restaurant.phillosophers.clone();
-        for phil in phillosophers {
-            match phil.heartbeat().await {
-                Response::Success => {
-                    println!("Philosopher {} is alive!", phil.username);
-                }
-                _ => {
-                    println!("Philosopher {} is not responding!", phil.username);
-                }
-            }
-            
-        }
-    }
-}
-
 impl Calls for Svc {
     async fn register(&mut self, buf: Vec<u8>) -> Response {
         // Spawn async block to handle the request
