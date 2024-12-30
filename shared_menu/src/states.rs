@@ -37,4 +37,14 @@ impl States {
     pub fn is_used(&self) -> bool {
         matches!(self, States::CutleryDirty(true) | States::CutleryClean(true))
     }
+
+    pub fn from_bytes(bytes: Vec<u8>) -> Self {
+        let command = bincode::deserialize(&bytes).unwrap();
+        println!("Received command: {:?}", command);
+        command
+    }
+
+    pub fn to_bytes(&self) -> Vec<u8> {
+        bincode::serialize(self).unwrap()
+    }
 }

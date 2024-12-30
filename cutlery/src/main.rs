@@ -117,4 +117,13 @@ impl Calls for Svc {
         let data = self.data.lock().unwrap();
         Response::Return(vec![data.public_data.state.is_dirty() as u8])
     }
+    
+    async fn get_state(&mut self) -> Response {
+        Response::Return(self.data.lock().unwrap().public_data.state.to_bytes())
+    }
+    
+    async fn set_state(&mut self, state: States) -> Response {
+        self.data.lock().unwrap().public_data.state = state;
+        Response::Success
+    }
 }

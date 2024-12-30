@@ -83,4 +83,12 @@ impl Calls for Node {
     async fn get_waiter(&self) -> Node {
         panic!("Waiter cannot be called on a node that is not yourself");
     }
+    
+    async fn get_state(&mut self) -> Response {
+        self.puppet_action(Commands::GetState).await
+    }
+    
+    async fn set_state(&mut self, state: States) -> Response {
+        self.puppet_action(Commands::SetState(state)).await
+    }
 }

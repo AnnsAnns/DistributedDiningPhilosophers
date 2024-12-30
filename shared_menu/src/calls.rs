@@ -5,7 +5,7 @@ use tokio::{
     net::TcpStream,
 };
 
-use crate::{node::Node, COMMAND_LEN};
+use crate::{node::Node, states::States, COMMAND_LEN};
 
 /// Response from a call
 /// - **Success**: The call was successful
@@ -35,6 +35,9 @@ pub enum Commands {
     ReceiveRequest(Node, String), // A philosopher receives a request for a piece of cutlery they are holding
     PickUp(Node),
     PutDown,
+    SetState(States),
+    GetState,
+    InformStateUpdate(States),
 }
 
 /// Trait for a node that can be called
@@ -42,8 +45,16 @@ pub enum Commands {
 /// which also dictates the implementation of the `Calls` trait
 #[allow(async_fn_in_trait)]
 pub trait Calls {
+    /// Get the state of the node
+    async fn get_state(&mut self) -> Response;
+
+    /// Get the waiter node, used to create generic trait methods
     async fn get_waiter(&self) -> Node;
-    
+
+    /// Sets the state of the node
+    /// This is used to update the state of the node
+    async fn set_state(&mut self, _state: States) -> Response;
+
     /// Heartbeat to check if the node is still alive
     async fn heartbeat(&self) -> Response {
         Response::Success
@@ -96,6 +107,12 @@ pub trait Calls {
         Response::NotFound
     }
 
+    /// Informs the waiter about the state of the node
+    async fn inform_state_update(&mut self, state: States) -> Response {
+        let mut waiter = self.get_waiter().await;
+        waiter.inform_state_update(state).await
+    }
+
     /// Get call from command
     async fn get_call(&mut self, command: Commands) -> Response {
         match command {
@@ -111,6 +128,9 @@ pub trait Calls {
             Commands::ReceiveCutlery(cutlery, side) => self.receive_cutlery(cutlery, side).await,
             Commands::PickUp(philosopher) => self.pick_up(philosopher).await,
             Commands::PutDown => self.put_down().await,
+            Commands::SetState(state) => self.set_state(state).await,
+            Commands::InformStateUpdate(state) => self.inform_state_update(state).await,
+            Commands::GetState => self.get_state().await,
         }
     }
 

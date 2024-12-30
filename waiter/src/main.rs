@@ -1,6 +1,7 @@
 use calls::{Calls, Response};
 use node::{Node, RegisterType};
 use restaurant::Restaurant;
+use states::States;
 use std::collections::btree_map::Range;
 use std::net::SocketAddr;
 use std::sync::{Arc, Mutex};
@@ -14,6 +15,7 @@ struct Svc {
     restaurant: Arc<Mutex<Restaurant>>,
     visitors: usize,
     fully_booked: bool,
+    state: States,
 }
 
 #[tokio::main]
@@ -37,6 +39,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
             cutlery: Vec::new(),
         })),
         visitors,
+        state: States::WaiterActive,
         fully_booked: false,
     };
 
@@ -147,5 +150,14 @@ impl Calls for Svc {
     
     async fn get_waiter(&self) -> Node {
         panic!("Either the waiter has dysphoria or this should not be called from the waiter 😛");
+    }
+    
+    async fn get_state(&mut self) -> Response {
+        Response::Return(self.state.to_bytes())
+    }
+    
+    async fn set_state(&mut self, state: states::States) -> Response {
+        self.state = state;
+        Response::Success 
     }
 }
