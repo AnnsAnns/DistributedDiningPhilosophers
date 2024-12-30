@@ -40,7 +40,6 @@ impl States {
 
     pub fn from_bytes(bytes: Vec<u8>) -> Self {
         let command = bincode::deserialize(&bytes).unwrap();
-        println!("Received command: {:?}", command);
         command
     }
 

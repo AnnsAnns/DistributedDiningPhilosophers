@@ -14,7 +14,7 @@ services:
       - free_wifi
     deploy:
       mode: replicated
-      replicas: 3
+      replicas: 1
       endpoint_mode: dnsrr
 
   philosopher:
@@ -31,7 +31,7 @@ services:
       - free_wifi
     deploy:
       mode: replicated
-      replicas: 3
+      replicas: 1
       endpoint_mode: dnsrr
 
   waiter:
@@ -40,11 +40,14 @@ services:
     environment:
       WAITER_IP: "172.27.0.2"
       WAITER_PORT: "3000"
-      VISITORS: "3"
+      WAITER_HTTP_PORT: "3001"
+      VISITORS: "1"
     ports:
       - "3000:3000"
+      - "3001:3001"
     entrypoint: [ "./waiter" ]
     expose:
+      - 3001
       - 3000
     container_name: waiter
     networks:

@@ -36,9 +36,9 @@ impl Node {
 
     async fn puppet_action(&mut self, command: Commands) -> Response {
         let mut stream = TcpStream::connect(self.get_address()).await.unwrap();
-        println!("Sending command to: {}", self.get_address());
+        // println!("Sending command to: {}", self.get_address());
         let result = self.send_command_to(&mut stream, command).await;
-        println!("Received response: {:?}", result);
+        // println!("Received response: {:?}", result);
 
         match result {
             Ok(r) => r,

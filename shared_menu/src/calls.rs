@@ -147,7 +147,7 @@ pub trait Calls {
     /// The buffer contains the serialized command to be executed
     async fn handle_request(&mut self, buf: Vec<u8>) -> Response {
         let command: Commands = bincode::deserialize(&buf).unwrap();
-        println!("Received command: {:?}", command);
+        println!("Received command: {:?}", std::mem::discriminant(&command));
         self.get_call(command).await
     }
 
@@ -161,7 +161,7 @@ pub trait Calls {
         &mut self,
         stream: &mut TcpStream,
     ) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
-        println!("Receiving bytes from stream {:?}", stream.peer_addr());
+       // println!("Receiving bytes from stream {:?}", stream.peer_addr());
 
         let mut buf = vec![0; COMMAND_LEN];
         let n = stream.read_exact(&mut buf).await;
@@ -250,7 +250,6 @@ pub trait Calls {
 impl Commands {
     pub fn from_bytes(bytes: Vec<u8>) -> Self {
         let command = bincode::deserialize(&bytes).unwrap();
-        println!("Received command: {:?}", command);
         command
     }
 

@@ -8,6 +8,8 @@ use std::sync::{Arc, Mutex};
 use std::task;
 use tokio::net::TcpListener;
 
+mod http;
+
 use shared_menu::*;
 
 #[derive(Debug, Clone)]
@@ -23,15 +25,17 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     // Get ip and port from env vars
     let ip = std::env::var("WAITER_IP").expect("WAITER_IP env var not set!");
     let port = std::env::var("WAITER_PORT").expect("WAITER_PORT env var not set!");
+    let http_port = std::env::var("WAITER_HTTP_PORT").expect("WAITER_HTTP_PORT env var not set!");
     let visitors = std::env::var("VISITORS")
         .expect("VISITORS env var not set!")
         .parse::<usize>()
         .unwrap();
 
     let addr = format!("{}:{}", ip, port).parse::<SocketAddr>()?;
+    let http_addr = format!("{}:{}", ip, http_port).parse::<SocketAddr>()?;
 
     let listener = TcpListener::bind(addr).await?;
-    println!("Listening on {}", addr);
+    println!("Listening on tcp://{} for Nodes", addr);
 
     let svc = Svc {
         restaurant: Arc::new(Mutex::new(Restaurant {
@@ -42,6 +46,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         state: States::WaiterActive,
         fully_booked: false,
     };
+
+    let server_svc = svc.clone();
+    tokio::task::spawn(async move {
+        http::http_server(server_svc, http_addr).await;
+    });
 
     loop {
         let (stream, _) = listener.accept().await?;
@@ -172,5 +181,13 @@ impl Calls for Svc {
         }
 
         Response::Success
+    }
+}
+
+impl Svc {
+    /// Transforms the restaurant to a JSON string (Used for frontend)
+    async fn to_json(&self) -> String {
+        let restaurant = self.restaurant.lock().unwrap().clone();
+        serde_json::to_string(&restaurant).unwrap()
     }
 }
