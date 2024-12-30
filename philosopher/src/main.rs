@@ -1,15 +1,15 @@
 use calls::{Calls, Response};
-use states::States;
-use svc::Svc;
 use core::str;
 use node::{Node, RegisterType};
 use rand::{self, Rng};
 use random_names::{random_philosopher_name, random_port};
 use restaurant::Restaurant;
+use states::States;
 use std::{
     sync::{Arc, Mutex},
     time::Duration,
 };
+use svc::Svc;
 use tokio::{net::TcpListener, time::sleep};
 
 use shared_menu::*;
@@ -89,77 +89,82 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
 
 /// two things that we can do if the mutex won't work like this: tokio mutex that can be held across .await or make cutlery not a container but just a field
 /// Philosopher main logic loop
-async fn sit_at_table(svc: Svc) {
+async fn sit_at_table(mut svc: Svc) {
     loop {
-        //thinking
-        if matches!(svc.data.lock().unwrap().public_data.state, States::PhilosopherThinking) {
-            let rnd_sleep = rand::thread_rng().gen_range(1..=3);
-            sleep(Duration::from_secs(rnd_sleep)).await;
-            svc.data.lock().unwrap().public_data.state = States::PhilosopherHungry;
-            println!("state: {:?}", States::PhilosopherHungry);
-        }
-        //hungry
-        if matches!(svc.data.lock().unwrap().public_data.state, States::PhilosopherHungry) {
-            let svc_clone = svc.clone();
-            request_cutlery(svc_clone).await;
-            {
-                let mut data = svc.data.lock().unwrap();
-                if let Some(_) = data.owned_cutlery[0] {
-                    if let Some(_) = data.owned_cutlery[1] {
-                        data.public_data.state = States::PhilosopherEating;
-                        println!("state: {:?}", States::PhilosopherEating);
+        match svc.get_parsed_state().await {
+            States::PhilosopherThinking => {
+                let rnd_sleep = rand::thread_rng().gen_range(1..=3);
+                sleep(Duration::from_secs(rnd_sleep)).await;
+                svc.set_state(States::PhilosopherHungry).await;
+            }
+            States::PhilosopherHungry => {
+                let svc_clone = svc.clone();
+                request_cutlery(svc_clone).await;
+                let mut start_eating = false;
+                {
+                    let data = svc.data.lock().unwrap();
+                    if let Some(_) = data.owned_cutlery[0] {
+                        if let Some(_) = data.owned_cutlery[1] {
+                            start_eating = true;
+                        }
                     }
                 }
-            }
-        }
-
-        //eating
-        if matches!(svc.data.lock().unwrap().public_data.state, States::PhilosopherEating) {
-            let rnd_sleep = rand::thread_rng().gen_range(1..=3);
-            sleep(Duration::from_secs(rnd_sleep)).await;
-            //pass cutleries if there are open requests
-            let cutlery1 = svc.data.lock().unwrap().owned_cutlery[0].clone();
-            let request1 = svc.data.lock().unwrap().remembered_requests[0].clone();
-            match request1 {
-                Some(_) => {
-                    println!("remembered a request for right cutlery");
-                    cutlery1
-                        .clone()
-                        .unwrap()
-                        .clean_cutlery(cutlery1.clone().unwrap())
-                        .await;
-                    pass_cutlery(svc.clone(), "right".to_string()).await;
-                }
-                None => {
-                    cutlery1
-                        .clone()
-                        .unwrap()
-                        .use_cutlery(cutlery1.clone().unwrap())
-                        .await;
+                // We are forced to it this way to avoid a deadlock,
+                // because we can't hold the mutex across .await
+                // but we also dont want to manually change the state as
+                // other methods rely on the state being set via the svc
+                if start_eating {
+                    svc.set_state(States::PhilosopherEating).await;
                 }
             }
-            let cutlery2 = svc.data.lock().unwrap().owned_cutlery[1].clone();
-            let request2 = svc.data.lock().unwrap().remembered_requests[1].clone();
-            match request2 {
-                Some(_) => {
-                    println!("remembered a request for left cutlery");
-                    cutlery2
-                        .clone()
-                        .unwrap()
-                        .clean_cutlery(cutlery2.clone().unwrap())
-                        .await;
-                    pass_cutlery(svc.clone(), "left".to_string()).await;
+            States::PhilosopherEating => {
+                let rnd_sleep = rand::thread_rng().gen_range(1..=3);
+                sleep(Duration::from_secs(rnd_sleep)).await;
+                //pass cutleries if there are open requests
+                let cutlery1 = svc.data.lock().unwrap().owned_cutlery[0].clone();
+                let request1 = svc.data.lock().unwrap().remembered_requests[0].clone();
+                match request1 {
+                    Some(_) => {
+                        println!("remembered a request for right cutlery");
+                        cutlery1
+                            .clone()
+                            .unwrap()
+                            .clean_cutlery(cutlery1.clone().unwrap())
+                            .await;
+                        pass_cutlery(svc.clone(), "right".to_string()).await;
+                    }
+                    None => {
+                        cutlery1
+                            .clone()
+                            .unwrap()
+                            .use_cutlery(cutlery1.clone().unwrap())
+                            .await;
+                    }
                 }
-                None => {
-                    cutlery2
-                        .clone()
-                        .unwrap()
-                        .use_cutlery(cutlery2.clone().unwrap())
-                        .await;
+                let cutlery2 = svc.data.lock().unwrap().owned_cutlery[1].clone();
+                let request2 = svc.data.lock().unwrap().remembered_requests[1].clone();
+                match request2 {
+                    Some(_) => {
+                        println!("remembered a request for left cutlery");
+                        cutlery2
+                            .clone()
+                            .unwrap()
+                            .clean_cutlery(cutlery2.clone().unwrap())
+                            .await;
+                        pass_cutlery(svc.clone(), "left".to_string()).await;
+                    }
+                    None => {
+                        cutlery2
+                            .clone()
+                            .unwrap()
+                            .use_cutlery(cutlery2.clone().unwrap())
+                            .await;
+                    }
                 }
+                svc.set_state(States::PhilosopherThinking).await;
+                println!("state: {:?}", States::PhilosopherThinking);
             }
-            svc.data.lock().unwrap().public_data.state = States::PhilosopherThinking;
-            println!("state: {:?}", States::PhilosopherThinking);
+            _ => (),
         }
         sleep(Duration::from_millis(2000)).await;
     }

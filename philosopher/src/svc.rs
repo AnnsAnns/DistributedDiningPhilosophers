@@ -1,10 +1,8 @@
 use calls::{Calls, Response};
 use node::Node;
-use states::States;
 use restaurant::Restaurant;
-use std::{
-    sync::{Arc, Mutex},
-};
+use states::States;
+use std::sync::{Arc, Mutex};
 
 use shared_menu::*;
 
@@ -14,7 +12,6 @@ use crate::{pass_cutlery, sit_at_table, Philosopher};
 pub struct Svc {
     pub data: Arc<Mutex<Philosopher>>,
 }
-
 
 impl Calls for Svc {
     async fn get_waiter(&self) -> Node {
@@ -73,7 +70,7 @@ impl Calls for Svc {
         }
         println!("done grabbing cutlery!");
         //start Philosopher main logic loop
-        self.data.lock().unwrap().public_data.state = States::PhilosopherThinking;
+        self.set_state(States::PhilosopherThinking).await;
         println!("state: {:?}", States::PhilosopherThinking);
         let svc_clone = self.clone();
         tokio::task::spawn(async move {
@@ -114,10 +111,11 @@ impl Calls for Svc {
         let public_data = self.data.lock().unwrap().public_data.clone();
         let response = cutlery.pick_up(public_data).await;
         if response == Response::Success {
-            let mut data = self.data.lock().unwrap();
-            data.owned_cutlery[pos1] = Some(cutlery);
-            if let Some(_) = data.owned_cutlery[pos2] {
-                data.public_data.state = States::PhilosopherEating;
+            self.data.lock().unwrap().owned_cutlery[pos1] = Some(cutlery);
+            let cutlery = self.data.lock().unwrap().owned_cutlery[pos2].clone();
+            // Avoid deadlock by getting the cutlery before setting the state
+            if let Some(_) = cutlery {
+                self.set_state(States::PhilosopherEating).await;
                 println!("state: {:?}", States::PhilosopherEating);
             }
             return Response::Success;
@@ -150,15 +148,21 @@ impl Calls for Svc {
         match cutlery.is_dirty().await {
             Response::Return(result) => {
                 let is_dirty: bool = result[0] == 1;
-                if is_dirty {
-                    if !matches!(self.data.lock().unwrap().public_data.state, States::PhilosopherEating) {
-                        cutlery.clean_cutlery(cutlery.clone()).await;
-                        return pass_cutlery(self.clone(), side).await;
+                let state = self.get_parsed_state().await;
+
+                match state {
+                    States::PhilosopherEating => {
+                        if is_dirty {
+                            cutlery.clean_cutlery(cutlery.clone()).await;
+                            return pass_cutlery(self.clone(), side).await;
+                        }
                     }
-                } else {
-                    if !matches!(self.data.lock().unwrap().public_data.state, States::PhilosopherThinking) {
-                        self.data.lock().unwrap().remembered_requests[pos] = Some(philosopher);
+                    States::PhilosopherThinking => {
+                        if !is_dirty {
+                            self.data.lock().unwrap().remembered_requests[pos] = Some(philosopher);
+                        }
                     }
+                    _ => (),
                 }
             }
             _ => {
@@ -167,11 +171,11 @@ impl Calls for Svc {
         }
         Response::Success
     }
-    
+
     async fn get_state(&mut self) -> Response {
         Response::Return(self.data.lock().unwrap().public_data.state.to_bytes())
     }
-    
+
     async fn set_state(&mut self, _state: States) -> Response {
         self.data.lock().unwrap().public_data.state = _state;
         Response::Success

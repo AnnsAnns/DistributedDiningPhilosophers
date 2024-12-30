@@ -48,6 +48,16 @@ pub trait Calls {
     /// Get the state of the node
     async fn get_state(&mut self) -> Response;
 
+    /// Returns the state of the node as a `States` enum
+    /// If the node is not responding, `States::NotResponding` is returned
+    async fn get_parsed_state(&mut self) -> States {
+        let response = self.get_state().await;
+        match response {
+            Response::Return(bytes) => States::from_bytes(bytes),
+            _ => States::NotResponding,
+        }
+    }
+
     /// Get the waiter node, used to create generic trait methods
     async fn get_waiter(&self) -> Node;
 
@@ -109,8 +119,7 @@ pub trait Calls {
 
     /// Informs the waiter about the state of the node
     async fn inform_state_update(&mut self, state: States) -> Response {
-        let mut waiter = self.get_waiter().await;
-        waiter.inform_state_update(state).await
+        panic!("This method has a cycle in the call stack, reimplement it!!!");
     }
 
     /// Get call from command
