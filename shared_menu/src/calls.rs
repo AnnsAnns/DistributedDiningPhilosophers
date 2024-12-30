@@ -147,7 +147,7 @@ pub trait Calls {
     /// The buffer contains the serialized command to be executed
     async fn handle_request(&mut self, buf: Vec<u8>) -> Response {
         let command: Commands = bincode::deserialize(&buf).unwrap();
-        println!("Received command: {:?}", std::mem::discriminant(&command));
+        println!("Received command: {:?}", command);
         self.get_call(command).await
     }
 
@@ -174,7 +174,7 @@ pub trait Calls {
             }
         };
 
-        println!("Received {} bytes", size);
+        //println!("Received {} bytes", size);
         Ok(buf)
     }
 
@@ -236,7 +236,7 @@ pub trait Calls {
                 return Err(Box::new(e));
             }
         };
-        println!("Received {} bytes", size);
+        //println!("Received {} bytes", size);
         let response: Response = bincode::deserialize(&buf).unwrap();
         Ok(response)
     }

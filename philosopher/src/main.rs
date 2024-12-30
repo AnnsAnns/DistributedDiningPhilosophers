@@ -166,7 +166,7 @@ async fn sit_at_table(mut svc: Svc) {
             }
             _ => (),
         }
-        sleep(Duration::from_millis(2000)).await;
+        sleep(Duration::from_secs(3)).await;
     }
 }
 
