@@ -16,7 +16,7 @@ use shared_menu::*;
 struct Svc {
     restaurant: Arc<Mutex<Restaurant>>,
     visitors: usize,
-    fully_booked: bool,
+    fully_booked: Arc<Mutex<bool>>,
     state: States,
 }
 
@@ -44,7 +44,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         })),
         visitors,
         state: States::WaiterActive,
-        fully_booked: false,
+        fully_booked: Arc::new(Mutex::new(false)),
     };
 
     let server_svc = svc.clone();
@@ -58,11 +58,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         let mut svc_clone = svc.clone();
         tokio::task::spawn(async move {
             svc_clone.connection_handler(stream).await;
-            if !svc_clone.fully_booked
+            if !*svc_clone.fully_booked.lock().unwrap()
                 && svc_clone.visitors == svc_clone.restaurant.lock().unwrap().phillosophers.len()
                 && svc_clone.visitors == svc_clone.restaurant.lock().unwrap().cutlery.len()
             {
-                svc_clone.fully_booked = true;
+                *svc_clone.fully_booked.lock().unwrap() = true;
                 svc_clone.initialise(vec![0], 0).await;
             };
         });
@@ -137,18 +137,18 @@ impl Calls for Svc {
         println!("DONE INITIALIZING");
         Response::Success
     }
-    
+
     async fn get_waiter(&self) -> Node {
         panic!("Either the waiter has dysphoria or this should not be called from the waiter 😛");
     }
-    
+
     async fn get_state(&mut self) -> Response {
         Response::Return(self.state.to_bytes())
     }
-    
+
     async fn set_state(&mut self, state: states::States) -> Response {
         self.state = state;
-        Response::Success 
+        Response::Success
     }
 
     async fn inform_state_update(&mut self, buf: Vec<u8>) -> Response {
