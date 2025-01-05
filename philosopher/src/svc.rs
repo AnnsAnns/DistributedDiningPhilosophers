@@ -149,6 +149,12 @@ impl Calls for Svc {
 
     /// Receive a request for cutlery from neighboring philosophers
     async fn receive_request(&mut self, philosopher: Node, side: String) -> Response {
+        {
+            let data = self.data.lock().unwrap();
+            let test1 = data.right_hand.clone();
+            let test2 = data.left_hand.clone();
+            println!("received request, my cutlery: {:?},{:?}", test1, test2);
+        }
         let opt_cutlery;
         if side == "left" {
             opt_cutlery = self.data.lock().unwrap().left_hand.clone();
@@ -157,9 +163,6 @@ impl Calls for Svc {
         } else {
             return Response::NotFound;
         }
-        let test1 = self.data.lock().unwrap().right_hand.clone();
-        let test2 = self.data.lock().unwrap().left_hand.clone();
-        println!("received request, my cutlery: {:?},{:?}", test1, test2);
         let mut cutlery = match opt_cutlery {
             None => {
                 println! {"Couldn't find cutlery I was supposed to have!"}
@@ -187,7 +190,9 @@ impl Calls for Svc {
                         }
                     }
                     false => {
-                        if !matches!(state, States::PhilosopherThinking) {
+                        if matches!(state, States::PhilosopherThinking) {
+                            return pass_cutlery(self.clone(), side).await;
+                        } else {
                             if side == "left" {
                                 self.data.lock().unwrap().left_neighbor.request = Some(philosopher);
                             } else {
