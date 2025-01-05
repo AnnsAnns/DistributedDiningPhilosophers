@@ -15,15 +15,19 @@ use tokio::{net::TcpListener, time::sleep};
 use shared_menu::*;
 
 mod svc;
-
+#[derive(Debug, Clone)]
+struct Neighbor {
+    neighbor: Node,
+    request: Option<Node>,
+}
 #[derive(Debug, Clone)]
 struct Philosopher {
     pub public_data: Node,
     #[allow(dead_code)]
-    //right 0, left 1
-    pub owned_cutlery: Vec<Option<Node>>,
-    //right 0, left 1
-    pub remembered_requests: Vec<Option<Node>>,
+    pub right_hand: Option<Node>,
+    pub left_hand: Option<Node>,
+    pub right_neighbor: Neighbor,
+    pub left_neighbor: Neighbor,
     pub id: usize,
     pub restaurant: Restaurant,
     pub waiter: Node,
@@ -51,8 +55,28 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
             of_type: RegisterType::Philosopher,
             state: States::Initializing,
         },
-        owned_cutlery: vec![None; 2],
-        remembered_requests: vec![None; 2],
+        right_hand: None,
+        left_hand: None,
+        right_neighbor: Neighbor {
+            neighbor: Node {
+                username: username.clone(),
+                ip: ip.clone(),
+                port,
+                of_type: RegisterType::Philosopher,
+                state: States::Initializing,
+            },
+            request: None,
+        },
+        left_neighbor: Neighbor {
+            neighbor: Node {
+                username: username.clone(),
+                ip: ip.clone(),
+                port,
+                of_type: RegisterType::Philosopher,
+                state: States::Initializing,
+            },
+            request: None,
+        },
         id: 0,
         restaurant: Restaurant::default(),
         waiter: Node {
@@ -96,6 +120,7 @@ async fn sit_at_table(mut svc: Svc) {
                 let rnd_sleep = rand::thread_rng().gen_range(1..=3);
                 sleep(Duration::from_secs(rnd_sleep)).await;
                 svc.set_state(States::PhilosopherHungry).await;
+                println!("state: {:?}", States::PhilosopherHungry);
             }
             States::PhilosopherHungry => {
                 let svc_clone = svc.clone();
@@ -103,8 +128,8 @@ async fn sit_at_table(mut svc: Svc) {
                 let mut start_eating = false;
                 {
                     let data = svc.data.lock().unwrap();
-                    if let Some(_) = data.owned_cutlery[0] {
-                        if let Some(_) = data.owned_cutlery[1] {
+                    if let Some(_) = data.right_hand {
+                        if let Some(_) = data.left_hand {
                             start_eating = true;
                         }
                     }
@@ -115,49 +140,50 @@ async fn sit_at_table(mut svc: Svc) {
                 // other methods rely on the state being set via the svc
                 if start_eating {
                     svc.set_state(States::PhilosopherEating).await;
+                    println!("state: {:?}", States::PhilosopherEating);
                 }
             }
             States::PhilosopherEating => {
                 let rnd_sleep = rand::thread_rng().gen_range(1..=3);
                 sleep(Duration::from_secs(rnd_sleep)).await;
                 //pass cutleries if there are open requests
-                let cutlery1 = svc.data.lock().unwrap().owned_cutlery[0].clone();
-                let request1 = svc.data.lock().unwrap().remembered_requests[0].clone();
-                match request1 {
+                let right_cutlery = svc.data.lock().unwrap().right_hand.clone();
+                let right_request = svc.data.lock().unwrap().right_neighbor.request.clone();
+                match right_request {
                     Some(_) => {
                         println!("remembered a request for right cutlery");
-                        cutlery1
+                        right_cutlery
                             .clone()
                             .unwrap()
-                            .clean_cutlery(cutlery1.clone().unwrap())
+                            .clean_cutlery(right_cutlery.clone().unwrap())
                             .await;
                         pass_cutlery(svc.clone(), "right".to_string()).await;
                     }
                     None => {
-                        cutlery1
+                        right_cutlery
                             .clone()
                             .unwrap()
-                            .use_cutlery(cutlery1.clone().unwrap())
+                            .use_cutlery(right_cutlery.clone().unwrap())
                             .await;
                     }
                 }
-                let cutlery2 = svc.data.lock().unwrap().owned_cutlery[1].clone();
-                let request2 = svc.data.lock().unwrap().remembered_requests[1].clone();
-                match request2 {
+                let left_cutlery = svc.data.lock().unwrap().left_hand.clone();
+                let left_request = svc.data.lock().unwrap().left_neighbor.request.clone();
+                match left_request {
                     Some(_) => {
                         println!("remembered a request for left cutlery");
-                        cutlery2
+                        left_cutlery
                             .clone()
                             .unwrap()
-                            .clean_cutlery(cutlery2.clone().unwrap())
+                            .clean_cutlery(left_cutlery.clone().unwrap())
                             .await;
                         pass_cutlery(svc.clone(), "left".to_string()).await;
                     }
                     None => {
-                        cutlery2
+                        left_cutlery
                             .clone()
                             .unwrap()
-                            .use_cutlery(cutlery2.clone().unwrap())
+                            .use_cutlery(left_cutlery.clone().unwrap())
                             .await;
                     }
                 }
@@ -172,46 +198,35 @@ async fn sit_at_table(mut svc: Svc) {
 
 /// Passes left or right cutlery to another philosopher
 async fn pass_cutlery(svc: Svc, side: String) -> Response {
-    let pos;
-    if side == "left".to_owned() {
-        pos = 1
-    } else if side == "right".to_owned() {
-        pos = 0
+    let mut cutlery;
+    if side == "left" {
+        cutlery = svc.data.lock().unwrap().left_hand.clone().unwrap();
+    } else if side == "right" {
+        cutlery = svc.data.lock().unwrap().right_hand.clone().unwrap();
     } else {
         return Response::NotFound;
     }
-    let mut cutlery = svc.data.lock().unwrap().owned_cutlery[pos].clone().unwrap();
     let response = cutlery.put_down().await;
     if response == Response::Success {
-        let mut id;
-        let last_id;
-        {
-            let data = svc.data.lock().unwrap();
-            id = data.id;
-            last_id = data.restaurant.phillosophers.len();
-        }
         let neighbors_side;
+        let mut neighbor: Node;
         if side == "left" {
-            id += 1;
-            if id == last_id {
-                id = 0
-            }
+            neighbor = svc.data.lock().unwrap().left_neighbor.neighbor.clone();
             neighbors_side = "right".to_string();
         } else {
-            if id == 0 {
-                id = last_id - 1
-            } else {
-                id -= 1;
-            }
+            neighbor = svc.data.lock().unwrap().right_neighbor.neighbor.clone();
             neighbors_side = "left".to_string();
         }
-
-        let mut neighbor: Node = svc.data.lock().unwrap().restaurant.phillosophers[id].clone();
-        println!("passing cutlery {} to {:?}.", side, neighbor);
+        println!("passing {} cutlery to {:?}.", side, neighbor);
 
         let pass_response = neighbor.receive_cutlery(cutlery, neighbors_side).await;
         if pass_response == Response::Success {
-            svc.data.lock().unwrap().owned_cutlery[pos] = None;
+            if side == "left" {
+                svc.data.lock().unwrap().left_hand = None;
+            } else {
+                svc.data.lock().unwrap().right_hand = None;
+            }
+
             return Response::Success;
         }
     }
@@ -221,54 +236,29 @@ async fn pass_cutlery(svc: Svc, side: String) -> Response {
 async fn request_cutlery(svc: Svc) -> Response {
     println!("requesting cutlery.");
     // check for needed cutlery
-    let owned_cutlery = svc.data.lock().unwrap().owned_cutlery.clone();
-    let mut left_id;
-    let mut right_id;
-    let last_id;
-    let id;
     {
-        let data = svc.data.lock().unwrap();
-        id = data.id;
-        left_id = data.id;
-        right_id = data.id;
-        last_id = data.restaurant.phillosophers.len();
+        let test1 = svc.data.lock().unwrap().right_hand.clone();
+        let test2 = svc.data.lock().unwrap().left_hand.clone();
+        println!("I have right: {:?}, left: {:?}", test1, test2);
     }
-
-    left_id += 1;
-    if left_id == last_id {
-        left_id = 0
-    }
-    if right_id == 0 {
-        right_id = last_id - 1
-    } else {
-        right_id -= 1;
-    }
-    println!(
-        "{} requesting left {} and right {}, I have: {:?}",
-        id, left_id, right_id, owned_cutlery
-    );
 
     //right
-    match owned_cutlery[0] {
-        None => {
-            let mut right_neighbor: Node =
-                svc.data.lock().unwrap().restaurant.phillosophers[right_id].clone();
-            let right_response = right_neighbor
-                .receive_request(right_neighbor.clone(), "left".to_string())
-                .await;
-        }
-        Some(_) => (),
+    if svc.data.lock().unwrap().right_hand.is_none() {
+        let mut right_neighbor = svc.data.lock().unwrap().right_neighbor.neighbor.clone();
+        let own_data = svc.data.lock().unwrap().public_data.clone();
+        println!("requesting right from: {:?}", right_neighbor.clone());
+        let _right_response = right_neighbor
+            .receive_request(own_data, "left".to_string())
+            .await;
     }
     //left
-    match owned_cutlery[1] {
-        None => {
-            let mut left_neighbor: Node =
-                svc.data.lock().unwrap().restaurant.phillosophers[left_id].clone();
-            let left_response = left_neighbor
-                .receive_request(left_neighbor.clone(), "right".to_string())
-                .await;
-        }
-        Some(_) => (),
+    if svc.data.lock().unwrap().left_hand.is_none() {
+        let mut left_neighbor: Node = svc.data.lock().unwrap().left_neighbor.neighbor.clone();
+        let own_data = svc.data.lock().unwrap().public_data.clone();
+        println!("requesting left from: {:?}", left_neighbor.clone());
+        let _left_response = left_neighbor
+            .receive_request(own_data, "right".to_string())
+            .await;
     }
     Response::Success
 }
