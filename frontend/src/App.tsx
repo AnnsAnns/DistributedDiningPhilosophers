@@ -57,17 +57,21 @@ function App() {
   };
 
   return (
-    <div className="p-4">
+    <div className="p-4 w-full flex flex-col items-center">
       <h1 className="text-4xl font-bold mb-4">Dining Philosophers</h1>
       <h2 className="text-2xl font-bold mb-4">Stats:</h2>
       <div className="mb-4">
         {data && (
           <div>
-            {Object.entries(data.state_stats).map(([key, value]) => (
-              <div key={key}>
-                <strong>{key}:</strong> {value}
-              </div>
-            ))}
+            {Object.entries(data.state_stats).map(([key, value]) => {
+              const hasChanged = prevData && prevData.state_stats[key] !== value;
+
+              return (
+                <div key={key} className={`mb-2 ${hasChanged ? 'bg-yellow-200' : ''}`}>
+                  <strong>{key}:</strong> {value}
+                </div>
+              )})
+            }
           </div>
         )}
       </div>
@@ -77,7 +81,7 @@ function App() {
         <div>
           <div className="mb-4">
             <h3 className="text-xl font-semibold">Philosophers</h3>
-            <ul className="list-disc pl-5">
+            <ul className="list-none pl-5">
               {data.phillosophers.map((philosopher, index) => (
                 <li key={index} className={`mb-2 ${prevData && hasChanged(prevData.phillosophers[index], philosopher) ? 'bg-yellow-200' : ''}`}>
                   <div><strong>Username:</strong> {philosopher.username}</div>
@@ -91,7 +95,7 @@ function App() {
           </div>
           <div>
             <h3 className="text-xl font-semibold">Cutlery</h3>
-            <ul className="list-disc pl-5">
+            <ul className="list-none pl-5">
               {data.cutlery.map((item, index) => (
                 <li key={index} className={`mb-2  ${prevData && hasChanged(prevData.cutlery[index], item) ? 'bg-yellow-200' : ''}`}>
                   <div><strong>Username:</strong> {item.username}</div>
