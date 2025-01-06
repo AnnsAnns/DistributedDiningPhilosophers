@@ -80,35 +80,34 @@ impl Calls for Svc {
     async fn clean_cutlery(&mut self, _cutlery: Node) -> Response {
         println!("cleaned");
 
-        let mut data = self.data.lock().unwrap();
-        data.public_data.state = States::CutleryClean(data.public_data.state.is_used());
+        let is_used = self.data.lock().unwrap().public_data.state.is_used();
+        self.set_state(States::CutleryClean(is_used)).await;
 
         Response::Success
     }
     ///makes the cutlery dirty, should happen when philosophers eat
     async fn use_cutlery(&mut self, _cutlery: Node) -> Response {
         println!("used to eat");
-        let mut data = self.data.lock().unwrap();
-        data.public_data.state = States::CutleryDirty(data.public_data.state.is_used());
+        let is_used = self.data.lock().unwrap().public_data.state.is_used();
+        self.set_state(States::CutleryDirty(is_used)).await;
 
         Response::Success
     }
     
     async fn pick_up(&mut self, philosopher: Node) -> Response {
         println!("picked up by {}", philosopher.username);
-        let mut data = self.data.lock().unwrap();
-        if data.public_data.state.is_used() {
+        let is_used = self.data.lock().unwrap().public_data.state.is_used();
+        if is_used {
             Response::Failure("No nabbing allowed!".to_string())
         } else {
-            data.public_data.state = States::CutleryClean(true);
+            self.set_state(States::CutleryClean(true)).await;
             Response::Success
         }
     }
     
     async fn put_down(&mut self) -> Response {
         println!("put down.");
-        let mut data = self.data.lock().unwrap();
-        data.public_data.state = States::CutleryClean(false);
+        self.set_state(States::CutleryClean(false)).await;
         Response::Success
     }
 
