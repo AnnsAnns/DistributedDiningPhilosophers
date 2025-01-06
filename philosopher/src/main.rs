@@ -151,13 +151,16 @@ async fn sit_at_table(mut svc: Svc) {
                 let right_request = svc.data.lock().unwrap().right_neighbor.request.clone();
                 match right_request {
                     Some(_) => {
+                        svc.data.lock().unwrap().right_hand = None;
+
                         println!("remembered a request for right cutlery");
                         right_cutlery
                             .clone()
                             .unwrap()
                             .clean_cutlery(right_cutlery.clone().unwrap())
                             .await;
-                        pass_cutlery(svc.clone(), "right".to_string()).await;
+                        pass_cutlery(svc.clone(), "right".to_string(), right_cutlery.unwrap())
+                            .await;
                     }
                     None => {
                         right_cutlery
@@ -171,13 +174,14 @@ async fn sit_at_table(mut svc: Svc) {
                 let left_request = svc.data.lock().unwrap().left_neighbor.request.clone();
                 match left_request {
                     Some(_) => {
+                        svc.data.lock().unwrap().left_hand = None;
                         println!("remembered a request for left cutlery");
                         left_cutlery
                             .clone()
                             .unwrap()
                             .clean_cutlery(left_cutlery.clone().unwrap())
                             .await;
-                        pass_cutlery(svc.clone(), "left".to_string()).await;
+                        pass_cutlery(svc.clone(), "left".to_string(), left_cutlery.unwrap()).await;
                     }
                     None => {
                         left_cutlery
@@ -197,15 +201,7 @@ async fn sit_at_table(mut svc: Svc) {
 }
 
 /// Passes left or right cutlery to another philosopher
-async fn pass_cutlery(svc: Svc, side: String) -> Response {
-    let mut cutlery;
-    if side == "left" {
-        cutlery = svc.data.lock().unwrap().left_hand.clone().unwrap();
-    } else if side == "right" {
-        cutlery = svc.data.lock().unwrap().right_hand.clone().unwrap();
-    } else {
-        return Response::NotFound;
-    }
+async fn pass_cutlery(svc: Svc, side: String, mut cutlery: Node) -> Response {
     let response = cutlery.put_down().await;
     if response == Response::Success {
         let neighbors_side;
@@ -219,15 +215,17 @@ async fn pass_cutlery(svc: Svc, side: String) -> Response {
         }
         println!("passing {} cutlery to {:?}.", side, neighbor);
 
-        let pass_response = neighbor.receive_cutlery(cutlery, neighbors_side).await;
+        let pass_response = neighbor
+            .receive_cutlery(cutlery.clone(), neighbors_side)
+            .await;
         if pass_response == Response::Success {
-            if side == "left" {
-                svc.data.lock().unwrap().left_hand = None;
-            } else {
-                svc.data.lock().unwrap().right_hand = None;
-            }
-
             return Response::Success;
+        } else {
+            if side == "left" {
+                svc.data.lock().unwrap().left_hand = Some(cutlery);
+            } else {
+                svc.data.lock().unwrap().right_hand = Some(cutlery);
+            }
         }
     }
     Response::Failure("Couldn't pass the cutlery to the neighbor!".to_string())

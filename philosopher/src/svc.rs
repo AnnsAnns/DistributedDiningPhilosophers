@@ -177,21 +177,33 @@ impl Calls for Svc {
 
                 match is_dirty {
                     true => {
-                        if !matches!(state, States::PhilosopherEating) {
-                            cutlery.clean_cutlery(cutlery.clone()).await;
-                            return pass_cutlery(self.clone(), side).await;
-                        } else {
+                        if matches!(state, States::PhilosopherEating) {
                             if side == "left" {
                                 self.data.lock().unwrap().left_neighbor.request = Some(philosopher);
                             } else {
                                 self.data.lock().unwrap().right_neighbor.request =
                                     Some(philosopher);
                             }
+                        } else {
+                            //set hand to None when deciding to pass the cutlery
+                            if side == "left" {
+                                self.data.lock().unwrap().left_hand = None;
+                            } else {
+                                self.data.lock().unwrap().right_hand = None;
+                            }
+                            cutlery.clean_cutlery(cutlery.clone()).await;
+                            return pass_cutlery(self.clone(), side, cutlery).await;
                         }
                     }
                     false => {
                         if matches!(state, States::PhilosopherThinking) {
-                            return pass_cutlery(self.clone(), side).await;
+                            //set hand to None when deciding to pass the cutlery
+                            if side == "left" {
+                                self.data.lock().unwrap().left_hand = None;
+                            } else {
+                                self.data.lock().unwrap().right_hand = None;
+                            }
+                            return pass_cutlery(self.clone(), side, cutlery).await;
                         } else {
                             if side == "left" {
                                 self.data.lock().unwrap().left_neighbor.request = Some(philosopher);
