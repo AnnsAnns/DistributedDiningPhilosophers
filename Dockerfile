@@ -4,7 +4,12 @@ WORKDIR /app
 
 # Set the working directory inside the container
 FROM chef AS planner
-COPY . .
+COPY waiter/ waiter/
+COPY shared_menu/ shared_menu/
+COPY philosopher/ philosopher/
+COPY cutlery/ cutlery/
+COPY Cargo.toml .
+COPY Cargo.lock .
 RUN cargo chef prepare --recipe-path recipe.json
 
 FROM chef AS builder 
@@ -13,7 +18,12 @@ COPY --from=planner /app/recipe.json recipe.json
 RUN cargo chef cook --recipe-path recipe.json
 
 # Build application
-COPY . .
+COPY waiter/ waiter/
+COPY shared_menu/ shared_menu/
+COPY philosopher/ philosopher/
+COPY cutlery/ cutlery/
+COPY Cargo.toml .
+COPY Cargo.lock .
 RUN cargo build
 
 # Copy built artifacts to a new stage
