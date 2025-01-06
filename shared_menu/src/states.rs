@@ -16,6 +16,9 @@ pub enum States {
     CutleryClean(bool),
     CutleryDirty(bool),
 
+    CutleryStatsClean,
+    CutleryStatsDirty,
+
     // Waiter states
     WaiterActive
 }

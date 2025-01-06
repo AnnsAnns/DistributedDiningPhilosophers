@@ -26,12 +26,11 @@ impl Restaurant {
     }
 
     pub fn add_state(&mut self, state: States) {
-        // If the state is CutleryClean or CutleryDirty, we want to add the state with the value true
-        // as we only care about the state, not the value of the state
+        // Serialization is not working properly when the enum value contains its own value
         let state_to_add = {
             match state {
-                States::CutleryClean(_) => States::CutleryClean(true),
-                States::CutleryDirty(_) => States::CutleryDirty(true),
+                States::CutleryClean(_) => States::CutleryStatsClean,
+                States::CutleryDirty(_) => States::CutleryStatsDirty,
                 s => s,
             }
         };
