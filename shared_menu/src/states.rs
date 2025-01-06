@@ -1,6 +1,6 @@
 use crate::node::Node;
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Hash, PartialEq, Eq, Clone, serde::Serialize, serde::Deserialize)]
 pub enum States {
     // General states
     Initializing,

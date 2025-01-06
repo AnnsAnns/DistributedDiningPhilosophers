@@ -3,6 +3,7 @@ use node::{Node, RegisterType};
 use restaurant::Restaurant;
 use states::States;
 use std::collections::btree_map::Range;
+use std::collections::HashMap;
 use std::net::SocketAddr;
 use std::sync::{Arc, Mutex};
 use std::task;
@@ -41,6 +42,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         restaurant: Arc::new(Mutex::new(Restaurant {
             phillosophers: Vec::new(),
             cutlery: Vec::new(),
+            state_stats: HashMap::new(),
         })),
         visitors,
         state: States::WaiterActive,
@@ -157,6 +159,8 @@ impl Calls for Svc {
         println!("Received state update from: {:?}", node);
 
         let mut restaurant = self.restaurant.lock().unwrap();
+
+        restaurant.add_state(node.state.clone());
 
         match node.of_type {
             RegisterType::Philosopher => {

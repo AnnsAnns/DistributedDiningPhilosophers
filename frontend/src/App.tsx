@@ -4,26 +4,46 @@ import 'tailwindcss/tailwind.css'
 
 const DEV_MODE = false;
 
+interface Philosopher {
+  username: string
+  ip: string
+  port: number
+  of_type: string
+  state: string
+}
+
+interface Cutlery {
+  username: string
+  ip: string
+  port: number
+  of_type: string
+  state: Record<string, boolean>
+}
+
+interface Response {
+  phillosophers: Philosopher[]
+  cutlery: Cutlery[]
+  state_stats: Record<string, number>
+}
+
 function App() {
-  const [data, setData] = useState(null)
-  const [prevData, setPrevData] = useState(null)
+  const [data, setData] = useState<Response | null>(null)
+  const [prevData, setPrevData] = useState<Response | null>(null)
 
   useEffect(() => {
     const fetchData = async () => {
-      if (DEV_MODE) {
-        const fallbackData = JSON.parse(`{"phillosophers":[{"username":"Camus Wittgenstein 485","ip":"philosopher","port":5094,"of_type":"Philosopher","state":"PhilosopherHungry"},{"username":"Foucault Foucault 16","ip":"philosopher","port":4499,"of_type":"Philosopher","state":"PhilosopherEating"},{"username":"Nietzsche Heidegger 422","ip":"philosopher","port":6395,"of_type":"Philosopher","state":"PhilosopherThinking"}],"cutlery":[{"username":"Spork 830","ip":"cutlery","port":3890,"of_type":"Cutlery","state":{"CutleryClean":false}},{"username":"Spork 534","ip":"cutlery","port":8957,"of_type":"Cutlery","state":{"CutleryClean":false}},{"username":"Fork 849","ip":"cutlery","port":3051,"of_type":"Cutlery","state":{"CutleryClean":false}}]}`);
-        setPrevData(data);
-        setData(fallbackData);
-        console.log('Fetched data:', fallbackData);
-      } else {
-        try {
-          const response = await fetch('/api');
-          const parsed_response = await response.json();
-          setPrevData(data);
-          setData(parsed_response);
-        } catch (_) {
-          console.error('Failed to fetch data');
+      try {
+        const response = await fetch('/api');
+        const parsed_response: Response = await response.json();
+
+        if (!hasChanged(data, parsed_response)) {
+          return;
         }
+
+        setPrevData(data);
+        setData(parsed_response);
+      } catch (_) {
+        console.error('Failed to fetch data');
       }
     };
 
@@ -32,12 +52,26 @@ function App() {
     return () => clearInterval(intervalId);
   }, [data]);
 
-  const hasChanged = (prev, current) => {
+  const hasChanged = (prev: unknown, current: unknown) => {
     return JSON.stringify(prev) !== JSON.stringify(current);
   };
 
   return (
     <div className="p-4">
+      <h1 className="text-4xl font-bold mb-4">Dining Philosophers</h1>
+      <h2 className="text-2xl font-bold mb-4">Stats:</h2>
+      <div className="mb-4">
+        {data && (
+          <div>
+            {Object.entries(data.state_stats).map(([key, value]) => (
+              <div key={key}>
+                <strong>{key}:</strong> {value}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
       <h2 className="text-2xl font-bold mb-4">Fetched Data:</h2>
       {data ? (
         <div>
@@ -64,7 +98,9 @@ function App() {
                   <div><strong>IP:</strong> {item.ip}</div>
                   <div><strong>Port:</strong> {item.port}</div>
                   <div><strong>Type:</strong> {item.of_type}</div>
-                  <div><strong>State:</strong> {item.state.CutleryClean ? 'Clean' : 'Not Clean'}</div>
+                  <div><strong>State:</strong> {
+                    JSON.stringify(item.state)
+                  } </div>
                 </li>
               ))}
             </ul>
