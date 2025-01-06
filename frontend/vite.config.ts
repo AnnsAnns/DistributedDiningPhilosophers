@@ -7,7 +7,7 @@ export default defineConfig({
   server: {
     cors: true,
     proxy: {
-      "/api": "http://172.27.0.2:3001"
+      "/api": "http://localhost:3001"
     }
   }
 })
