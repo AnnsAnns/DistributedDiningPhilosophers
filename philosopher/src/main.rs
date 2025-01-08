@@ -148,48 +148,30 @@ async fn sit_at_table(mut svc: Svc) {
                 sleep(Duration::from_secs(rnd_sleep)).await;
                 //pass cutleries if there are open requests
                 let right_cutlery = svc.data.lock().unwrap().right_hand.clone();
+                svc.use_cutlery(right_cutlery.clone().unwrap()).await;
                 let right_request = svc.data.lock().unwrap().right_neighbor.request.clone();
                 match right_request {
                     Some(_) => {
                         svc.data.lock().unwrap().right_hand = None;
 
                         println!("remembered a request for right cutlery");
-                        right_cutlery
-                            .clone()
-                            .unwrap()
-                            .clean_cutlery(right_cutlery.clone().unwrap())
-                            .await;
+                        svc.clean_cutlery(right_cutlery.clone().unwrap()).await;
                         pass_cutlery(svc.clone(), "right".to_string(), right_cutlery.unwrap())
                             .await;
                     }
-                    None => {
-                        right_cutlery
-                            .clone()
-                            .unwrap()
-                            .use_cutlery(right_cutlery.clone().unwrap())
-                            .await;
-                    }
+                    _ => {}
                 }
                 let left_cutlery = svc.data.lock().unwrap().left_hand.clone();
+                svc.use_cutlery(left_cutlery.clone().unwrap()).await;
                 let left_request = svc.data.lock().unwrap().left_neighbor.request.clone();
                 match left_request {
                     Some(_) => {
                         svc.data.lock().unwrap().left_hand = None;
                         println!("remembered a request for left cutlery");
-                        left_cutlery
-                            .clone()
-                            .unwrap()
-                            .clean_cutlery(left_cutlery.clone().unwrap())
-                            .await;
+                        svc.clean_cutlery(left_cutlery.clone().unwrap()).await;
                         pass_cutlery(svc.clone(), "left".to_string(), left_cutlery.unwrap()).await;
                     }
-                    None => {
-                        left_cutlery
-                            .clone()
-                            .unwrap()
-                            .use_cutlery(left_cutlery.clone().unwrap())
-                            .await;
-                    }
+                    _ => {}
                 }
                 svc.set_state(States::PhilosopherThinking).await;
                 println!("state: {:?}", States::PhilosopherThinking);

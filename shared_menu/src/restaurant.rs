@@ -1,28 +1,24 @@
 use std::collections::HashMap;
 
-use bytes::Bytes;
-
 use crate::{node::Node, states::States};
 
 /// Restaurant is a struct that represents the restaurant.
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-#[derive(Default)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, Default)]
 pub struct Restaurant {
     pub phillosophers: Vec<Node>,
     pub cutlery: Vec<Node>,
     pub state_stats: HashMap<States, usize>,
 }
 
-
 impl Restaurant {
-    pub fn from_bytes(bytes: Bytes) -> Self {
+    pub fn from_bytes(bytes: Vec<u8>) -> Self {
         let restaurant: Restaurant = bincode::deserialize(&bytes).unwrap();
         restaurant
     }
 
-    pub fn to_bytes(&self) -> Bytes {
+    pub fn to_bytes(&self) -> Vec<u8> {
         let bytes = bincode::serialize(&self).unwrap();
-        Bytes::from(bytes)
+        bytes
     }
 
     pub fn add_state(&mut self, state: States) {

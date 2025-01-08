@@ -21,7 +21,7 @@ impl Calls for Svc {
 
     async fn register(&mut self, buf: Vec<u8>) -> Response {
         let mut data = self.data.lock().unwrap();
-        let restaurant = Restaurant::from_bytes(buf.into());
+        let restaurant = Restaurant::from_bytes(buf);
         println!("Received restaurant update: {:?}", restaurant);
         data.restaurant = restaurant;
         Response::Success
@@ -31,7 +31,7 @@ impl Calls for Svc {
         let last_id;
         {
             let mut data = self.data.lock().unwrap();
-            let restaurant = Restaurant::from_bytes(buf.into());
+            let restaurant = Restaurant::from_bytes(buf);
             data.restaurant = restaurant;
             last_id = data.restaurant.phillosophers.len() - 1;
         }
@@ -115,7 +115,7 @@ impl Calls for Svc {
 
     ///makes the cutlery dirty, should happen when philosophers eat
     async fn use_cutlery(&mut self, mut cutlery: Node) -> Response {
-        println!("om nom nom...");
+        println!("eating...");
         let response = cutlery.use_cutlery(cutlery.clone()).await;
         response
     }
@@ -127,20 +127,12 @@ impl Calls for Svc {
         let public_data = self.data.lock().unwrap().public_data.clone();
         let response = cutlery.pick_up(public_data).await;
         if response == Response::Success {
-            let other_hand;
             if side == "left" {
                 self.data.lock().unwrap().left_hand = Some(cutlery);
-                other_hand = self.data.lock().unwrap().right_hand.clone();
             } else if side == "right" {
                 self.data.lock().unwrap().right_hand = Some(cutlery);
-                other_hand = self.data.lock().unwrap().left_hand.clone();
             } else {
                 return Response::NotFound;
-            }
-            // Avoid deadlock by getting the cutlery before setting the state
-            if let Some(_) = other_hand {
-                self.set_state(States::PhilosopherEating).await;
-                println!("state: {:?}", States::PhilosopherEating);
             }
             return Response::Success;
         }
@@ -191,7 +183,7 @@ impl Calls for Svc {
                             } else {
                                 self.data.lock().unwrap().right_hand = None;
                             }
-                            cutlery.clean_cutlery(cutlery.clone()).await;
+                            self.clean_cutlery(cutlery.clone()).await;
                             return pass_cutlery(self.clone(), side, cutlery).await;
                         }
                     }

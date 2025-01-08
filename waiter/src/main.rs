@@ -114,7 +114,7 @@ impl Calls for Svc {
     async fn info(&mut self) -> Response {
         let restaurant = self.restaurant.clone();
         let restaurant = restaurant.lock().expect("closed");
-        let restaurant_bytes = restaurant.to_bytes().to_vec();
+        let restaurant_bytes = restaurant.to_bytes();
         Response::Return(restaurant_bytes)
     }
 
@@ -123,7 +123,7 @@ impl Calls for Svc {
         {
             let restaurant = self.restaurant.clone();
             let restaurant = restaurant.lock().unwrap();
-            let restaurant_bytes = restaurant.to_bytes().to_vec();
+            let restaurant_bytes = restaurant.to_bytes();
             let phillosophers = restaurant.phillosophers.clone();
             for i in 0..(self.visitors - 1) {
                 let mut phil = phillosophers[i].clone();
@@ -134,7 +134,7 @@ impl Calls for Svc {
             }
         }
         let mut last_one = self.restaurant.lock().unwrap().phillosophers[self.visitors - 1].clone();
-        let last_info = self.restaurant.lock().unwrap().to_bytes().to_vec();
+        let last_info = self.restaurant.lock().unwrap().to_bytes();
         last_one.initialise(last_info, self.visitors - 1).await;
         println!("DONE INITIALIZING");
         Response::Success
