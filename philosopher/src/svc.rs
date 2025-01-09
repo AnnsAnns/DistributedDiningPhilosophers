@@ -1,6 +1,7 @@
 use calls::{Calls, Response};
 use node::Node;
 use restaurant::Restaurant;
+use seat::Seat;
 use states::States;
 use std::sync::{Arc, Mutex};
 
@@ -19,15 +20,8 @@ impl Calls for Svc {
         data.waiter.clone()
     }
 
-    async fn register(&mut self, buf: Vec<u8>) -> Response {
-        let mut data = self.data.lock().unwrap();
-        let restaurant = Restaurant::from_bytes(buf);
-        println!("Received restaurant update: {:?}", restaurant);
-        data.restaurant = restaurant;
-        Response::Success
-    }
-
-    async fn initialise(&mut self, buf: Vec<u8>, id: usize) -> Response {
+    async fn initialise(&mut self, seat: Seat) -> Response {
+        //@TODO: Continue here
         let last_id;
         // save received restaurant data
         {

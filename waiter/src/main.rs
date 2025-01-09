@@ -1,6 +1,7 @@
 use calls::{Calls, Response};
 use node::{Node, RegisterType};
 use restaurant::Restaurant;
+use seat::Seat;
 use states::States;
 use std::collections::btree_map::Range;
 use std::collections::HashMap;
@@ -65,14 +66,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
                 && svc_clone.visitors == svc_clone.restaurant.lock().unwrap().cutlery.len()
             {
                 *svc_clone.fully_booked.lock().unwrap() = true;
-                svc_clone.initialise(vec![0], 0).await;
+                svc_clone.init_restaurant().await;
             };
         });
     }
 }
 
 impl Calls for Svc {
-    async fn register(&mut self, buf: Vec<u8>) -> Response {
+    async fn register(&mut self, node: Node) -> Response {
         // Spawn async block to handle the request
         let restaurant = self.restaurant.clone();
 
@@ -80,7 +81,6 @@ impl Calls for Svc {
         // We have to use tasks here to properly handle the mutex
         let _ = tokio::task::spawn(async move {
             println!("Handling registration request!");
-            let node = Node::from_bytes(buf);
             let mut restaurant = restaurant.lock().unwrap();
             println!("Registering node: {:?}", node);
             match node.of_type {
@@ -91,23 +91,6 @@ impl Calls for Svc {
         })
         .await;
 
-        // Spawn async block to inform all nodes of new node
-        //let restaurant_copy = self.restaurant.clone();
-        //let _ = tokio::task::spawn(async move {
-        //    println!("Informing all nodes of new node!");
-        //    let restaurant = restaurant_copy.lock().unwrap();
-        //    let phillosophers = restaurant.phillosophers.clone();
-        //    for node in phillosophers {
-        //        let restaurant_bytes = restaurant.clone().to_bytes().to_vec();
-        //        tokio::task::spawn(async move {
-        //            let mut node = node.clone();
-        //            let response = node.register(restaurant_bytes.clone()).await;
-        //            println!("Response from node: {:?}", response);
-        //        });
-        //    }
-        //})
-        //.await;
-
         Response::Success
     }
 
@@ -116,28 +99,6 @@ impl Calls for Svc {
         let restaurant = restaurant.lock().expect("closed");
         let restaurant_bytes = restaurant.to_bytes();
         Response::Return(restaurant_bytes)
-    }
-
-    async fn initialise(&mut self, _buf: Vec<u8>, _id: usize) -> Response {
-        println!("START INITIALIZING");
-        {
-            let restaurant = self.restaurant.clone();
-            let restaurant = restaurant.lock().unwrap();
-            let restaurant_bytes = restaurant.to_bytes();
-            let phillosophers = restaurant.phillosophers.clone();
-            for i in 0..(self.visitors - 1) {
-                let mut phil = phillosophers[i].clone();
-                let info = restaurant_bytes.clone();
-                tokio::task::spawn(async move {
-                    phil.initialise(info, i).await;
-                });
-            }
-        }
-        let mut last_one = self.restaurant.lock().unwrap().phillosophers[self.visitors - 1].clone();
-        let last_info = self.restaurant.lock().unwrap().to_bytes();
-        last_one.initialise(last_info, self.visitors - 1).await;
-        println!("DONE INITIALIZING");
-        Response::Success
     }
 
     async fn get_waiter(&self) -> Node {
@@ -189,6 +150,35 @@ impl Calls for Svc {
 }
 
 impl Svc {
+    async fn init_restaurant(&mut self) {
+        let restaurant = self.restaurant.clone();
+        let restaurant = restaurant.lock().unwrap();
+        let phillosophers = restaurant.phillosophers.clone();
+        for (i, phil) in phillosophers.iter().enumerate() {
+            let id_before = if i == 0 {
+                phillosophers.len() - 1
+            } else {
+                i - 1
+            };
+
+            let id_after = if i == phillosophers.len() - 1 {
+                0
+            } else {
+                i + 1
+            };
+
+            let seat = Seat::new(
+                i as u64,
+                restaurant.phillosophers[id_before].clone(),
+                restaurant.phillosophers[id_after].clone(),
+                restaurant.cutlery[i].clone(),
+                restaurant.cutlery[id_after].clone(),
+            );
+
+            phil.initialise(seat);
+        }
+    }
+
     /// Transforms the restaurant to a JSON string (Used for frontend)
     async fn to_json(&self) -> String {
         let restaurant = self.restaurant.lock().unwrap().clone();

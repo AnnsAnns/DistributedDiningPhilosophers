@@ -61,10 +61,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
 
     // Register with the waiter
     println!("Registering with the waiter");
-    let own_data = svc.data.lock().unwrap().public_data.to_bytes();
+    let own_data = svc.data.lock().unwrap().public_data.clone();
     let mut waiter = svc.data.lock().unwrap().waiter.clone();
 
-    let response = waiter.register(own_data.clone()).await;
+    let response = waiter.register(own_data).await;
     println!("Response from waiter: {:?}", response);
 
     // Handle incoming connections

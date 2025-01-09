@@ -1,8 +1,7 @@
 use tokio::net::TcpStream;
 
 use crate::{
-    calls::{Calls, Commands, Response},
-    states::States,
+    calls::{Calls, Commands, Response}, seat::Seat, states::States
 };
 
 /// RegisterType is an enum that represents the type of the node that is being registered.
@@ -51,14 +50,14 @@ impl Node {
 }
 
 impl Calls for Node {
-    async fn register(&mut self, buf: Vec<u8>) -> Response {
-        self.puppet_action(Commands::Register(buf)).await
+    async fn register(&mut self, node: Node) -> Response {
+        self.puppet_action(Commands::Register(node)).await
     }
     async fn info(&mut self) -> Response {
         self.puppet_action(Commands::Info).await
     }
-    async fn initialise(&mut self, buf: Vec<u8>, id: usize) -> Response {
-        self.puppet_action(Commands::Initialize(buf, id)).await
+    async fn initialise(&mut self, seat: Seat) -> Response {
+        self.puppet_action(Commands::Initialize(seat)).await
     }
     async fn clean_cutlery(&mut self, cutlery: Node) -> Response {
         self.puppet_action(Commands::CleanCutlery(cutlery)).await

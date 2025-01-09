@@ -5,7 +5,7 @@ use tokio::{
     net::TcpStream,
 };
 
-use crate::{node::Node, states::States, COMMAND_LEN};
+use crate::{node::Node, seat::Seat, states::States, COMMAND_LEN};
 
 /// Response from a call
 /// - **Success**: The call was successful
@@ -25,9 +25,9 @@ pub enum Response {
 /// @TODO: Switch from Vec<u8> to Vec<Node>
 #[derive(serde::Deserialize, serde::Serialize, Debug)]
 pub enum Commands {
-    Register(Vec<u8>), // Register Nodes with the network, e.g. waiter
+    Register(Node), // Register Nodes with the network, e.g. waiter
     Info,              // Request info about a node, e.g. waiter
-    Initialize(Vec<u8>, usize),
+    Initialize(Seat),
     CleanCutlery(Node), // Cleans Cutlery
     UseCutlery(Node),   // Makes Cutlery dirty by being used to eat
     IsDirty,
@@ -77,7 +77,7 @@ pub trait Calls {
 
     /// Register a node with the network
     /// The buffer contains the serialized node to be registered
-    async fn register(&mut self, _buf: Vec<u8>) -> Response {
+    async fn register(&mut self, _node: Node) -> Response {
         Response::NotFound
     }
 
@@ -86,7 +86,7 @@ pub trait Calls {
         Response::NotFound
     }
     // seats every philosopher
-    async fn initialise(&mut self, _buf: Vec<u8>, _id: usize) -> Response {
+    async fn initialise(&mut self, _seat: Seat) -> Response {
         Response::NotFound
     }
     /// Cleans the cutlery, should be done by philosophers before passing them to someone else
@@ -125,9 +125,9 @@ pub trait Calls {
     /// Get call from command
     async fn get_call(&mut self, command: Commands) -> Response {
         match command {
-            Commands::Register(buf) => self.register(buf).await,
+            Commands::Register(node) => self.register(node).await,
             Commands::Info => self.info().await,
-            Commands::Initialize(buf, id) => self.initialise(buf, id).await,
+            Commands::Initialize(seat) => self.initialise(seat).await,
             Commands::CleanCutlery(cutlery) => self.clean_cutlery(cutlery).await,
             Commands::UseCutlery(cutlery) => self.use_cutlery(cutlery).await,
             Commands::IsDirty => self.is_dirty().await,
