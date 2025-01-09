@@ -30,4 +30,6 @@ RUN cargo build
 FROM chef as runtime
 
 WORKDIR /app
-COPY --from=builder /app/target/debug/ .
+COPY --from=builder /app/target/debug/cutlery cutlery
+COPY --from=builder /app/target/debug/philosopher philosopher
+COPY --from=builder /app/target/debug/waiter waiter
