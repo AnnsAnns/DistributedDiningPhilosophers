@@ -1,4 +1,5 @@
 use calls::{Calls, Response};
+use local_ip_address::local_ip;
 use node::{Node, RegisterType};
 use random_names::{random_cutlery_name, random_port};
 use shared_menu::*;
@@ -20,11 +21,18 @@ struct Svc {
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     dotenv::dotenv().ok();
-    let ip = std::env::var("IP").expect("IP must be set");
+    let ip;
     let port = random_port();
     let username = random_cutlery_name();
     let waiter_ip = std::env::var("WAITER_IP").expect("WAITER_IP must be set");
     let waiter_port = std::env::var("WAITER_PORT").expect("WAITER_PORT must be set");
+    let local_ip = local_ip();
+    if let Ok(local_ip) = local_ip {
+        ip = local_ip.to_string();
+    } else {
+        println!("Error getting local IP: {:?}", local_ip);
+        ip = std::env::var("IP").expect("IP must be set");
+    }
     let addr = format!("{}:{}", ip, port);
 
     let listener = TcpListener::bind(addr.clone()).await?;
@@ -93,7 +101,7 @@ impl Calls for Svc {
 
         Response::Success
     }
-    
+
     async fn pick_up(&mut self, philosopher: Node) -> Response {
         println!("picked up by {}", philosopher.username);
         let is_used = self.data.lock().unwrap().public_data.state.is_used();
@@ -104,7 +112,7 @@ impl Calls for Svc {
             Response::Success
         }
     }
-    
+
     async fn put_down(&mut self) -> Response {
         println!("put down.");
         self.set_state(States::CutleryClean(false)).await;
@@ -116,11 +124,11 @@ impl Calls for Svc {
         let data = self.data.lock().unwrap();
         Response::Return(vec![data.public_data.state.is_dirty() as u8])
     }
-    
+
     async fn get_state(&mut self) -> Response {
         Response::Return(self.data.lock().unwrap().public_data.state.to_bytes())
     }
-    
+
     async fn set_state(&mut self, state: States) -> Response {
         self.data.lock().unwrap().public_data.state = state;
 

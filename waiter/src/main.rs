@@ -92,21 +92,21 @@ impl Calls for Svc {
         .await;
 
         // Spawn async block to inform all nodes of new node
-        let restaurant_copy = self.restaurant.clone();
-        let _ = tokio::task::spawn(async move {
-            println!("Informing all nodes of new node!");
-            let restaurant = restaurant_copy.lock().unwrap();
-            let phillosophers = restaurant.phillosophers.clone();
-            for node in phillosophers {
-                let restaurant_bytes = restaurant.clone().to_bytes().to_vec();
-                tokio::task::spawn(async move {
-                    let mut node = node.clone();
-                    let response = node.register(restaurant_bytes.clone()).await;
-                    println!("Response from node: {:?}", response);
-                });
-            }
-        })
-        .await;
+        //let restaurant_copy = self.restaurant.clone();
+        //let _ = tokio::task::spawn(async move {
+        //    println!("Informing all nodes of new node!");
+        //    let restaurant = restaurant_copy.lock().unwrap();
+        //    let phillosophers = restaurant.phillosophers.clone();
+        //    for node in phillosophers {
+        //        let restaurant_bytes = restaurant.clone().to_bytes().to_vec();
+        //        tokio::task::spawn(async move {
+        //            let mut node = node.clone();
+        //            let response = node.register(restaurant_bytes.clone()).await;
+        //            println!("Response from node: {:?}", response);
+        //        });
+        //    }
+        //})
+        //.await;
 
         Response::Success
     }

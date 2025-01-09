@@ -12,6 +12,7 @@ use std::{
 use svc::Svc;
 use tokio::{net::TcpListener, time::sleep};
 
+use local_ip_address::local_ip;
 use shared_menu::*;
 
 mod svc;
@@ -36,12 +37,19 @@ struct Philosopher {
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     dotenv::dotenv().ok();
-    let ip = std::env::var("IP").expect("IP must be set");
+    let ip;
     let port = random_port();
     let username = random_philosopher_name();
     let waiter_ip = std::env::var("WAITER_IP").expect("WAITER_IP must be set");
     let waiter_port = std::env::var("WAITER_PORT").expect("WAITER_PORT must be set");
 
+    let local_ip = local_ip();
+    if let Ok(local_ip) = local_ip {
+        ip = local_ip.to_string();
+    } else {
+        println!("Error getting local IP: {:?}", local_ip);
+        ip = std::env::var("IP").expect("IP must be set");
+    }
     let addr = format!("{}:{}", ip, port);
 
     let listener = TcpListener::bind(addr.clone()).await?;
