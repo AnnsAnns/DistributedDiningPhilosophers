@@ -29,6 +29,7 @@ impl Calls for Svc {
 
     async fn initialise(&mut self, buf: Vec<u8>, id: usize) -> Response {
         let last_id;
+        // save received restaurant data
         {
             let mut data = self.data.lock().unwrap();
             let restaurant = Restaurant::from_bytes(buf);
@@ -38,11 +39,11 @@ impl Calls for Svc {
 
         self.data.lock().unwrap().id = id;
         let personal_node = self.data.lock().unwrap().public_data.clone();
-
+        let mut left_id = id + 1;
+        let mut right_id = id;
+        // save seat neighbours to variables
         {
             let philosophers = self.data.lock().unwrap().restaurant.phillosophers.clone();
-            let mut left_id = id + 1;
-            let mut right_id = id;
             if left_id > last_id {
                 left_id = 0
             }
@@ -60,12 +61,56 @@ impl Calls for Svc {
                 request: None,
             };
             println!(
-                "neighbours saved as: left: {:?},right: {:?}",
+                "neighbours saved as: left: {:?}, right: {:?}",
                 philosophers[left_id].clone(),
                 philosophers[right_id].clone()
             );
         }
+        // pick up cutlery in acyclic pattern
+        println!("id: {}", id);
+        if id % 2 != 0 {
+            let mut cutlery2 = self.data.lock().unwrap().restaurant.cutlery[id - 1].clone();
+            let response2 = cutlery2.pick_up(personal_node.clone()).await;
+            match response2 {
+                Response::Success => self.data.lock().unwrap().right_hand = Some(cutlery2),
+                _ => {
+                    return Response::Failure(
+                        "Couldn't pick up cutlery during initializing!".to_string(),
+                    )
+                }
+            }
+            println!("grabbed first cutlery...");
 
+            let mut cutlery1 = self.data.lock().unwrap().restaurant.cutlery[id].clone();
+            let response1 = cutlery1.pick_up(personal_node).await;
+            match response1 {
+                Response::Success => self.data.lock().unwrap().left_hand = Some(cutlery1),
+                _ => {
+                    return Response::Failure(
+                        "Couldn't pick up cutlery during initializing!".to_string(),
+                    )
+                }
+            }
+
+            println!("grabbed second cutlery...");
+        } else {
+            let visitors = self.data.lock().unwrap().restaurant.phillosophers.len() - 1;
+            //id is even and the last id -> one cutlery is unused and needs to be picked up
+            if id == visitors {
+                let mut cutlery1 = self.data.lock().unwrap().restaurant.cutlery[id].clone();
+                let response1 = cutlery1.pick_up(personal_node).await;
+                match response1 {
+                    Response::Success => self.data.lock().unwrap().left_hand = Some(cutlery1),
+                    _ => {
+                        return Response::Failure(
+                            "Couldn't pick up cutlery during initializing!".to_string(),
+                        )
+                    }
+                }
+                println!("grabbed leftover cutlery...");
+            }
+        }
+        /*
         if id < (self.data.lock().unwrap().restaurant.phillosophers.len() - 1) {
             let mut cutlery1 = self.data.lock().unwrap().restaurant.cutlery[id].clone();
             let response1 = cutlery1.pick_up(personal_node.clone()).await;
@@ -94,6 +139,7 @@ impl Calls for Svc {
             }
             println!("grabbed second cutlery...",);
         }
+         */
         println!("done grabbing cutlery!");
         //start Philosopher main logic loop
         self.set_state(States::PhilosopherThinking).await;
