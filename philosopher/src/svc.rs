@@ -27,119 +27,60 @@ impl Calls for Svc {
         Response::Success
     }
 
-    async fn initialise(&mut self, buf: Vec<u8>, id: usize) -> Response {
-        let last_id;
-        // save received restaurant data
-        {
-            let mut data = self.data.lock().unwrap();
-            let restaurant = Restaurant::from_bytes(buf);
-            data.restaurant = restaurant;
-            last_id = data.restaurant.phillosophers.len() - 1;
-        }
-
+    async fn initialise(
+        &mut self,
+        buf: (Node, Node, Option<Node>, Option<Node>),
+        id: usize,
+    ) -> Response {
         self.data.lock().unwrap().id = id;
         let personal_node = self.data.lock().unwrap().public_data.clone();
-        let mut left_id = id + 1;
-        let mut right_id = id;
+
         // save seat neighbours to variables
-        {
-            let philosophers = self.data.lock().unwrap().restaurant.phillosophers.clone();
-            if left_id > last_id {
-                left_id = 0
-            }
-            if right_id == 0 {
-                right_id = last_id
-            } else {
-                right_id -= 1;
-            }
-            self.data.lock().unwrap().right_neighbor = Neighbor {
-                neighbor: philosophers[right_id].clone(),
-                request: None,
-            };
-            self.data.lock().unwrap().left_neighbor = Neighbor {
-                neighbor: philosophers[left_id].clone(),
-                request: None,
-            };
-            println!(
-                "neighbours saved as: left: {:?}, right: {:?}",
-                philosophers[left_id].clone(),
-                philosophers[right_id].clone()
-            );
-        }
-        // pick up cutlery in acyclic pattern
-        println!("id: {}", id);
-        if id % 2 != 0 {
-            let mut cutlery2 = self.data.lock().unwrap().restaurant.cutlery[id - 1].clone();
-            let response2 = cutlery2.pick_up(personal_node.clone()).await;
-            match response2 {
-                Response::Success => self.data.lock().unwrap().right_hand = Some(cutlery2),
-                _ => {
-                    return Response::Failure(
-                        "Couldn't pick up cutlery during initializing!".to_string(),
-                    )
-                }
-            }
-            println!("grabbed first cutlery...");
-
-            let mut cutlery1 = self.data.lock().unwrap().restaurant.cutlery[id].clone();
-            let response1 = cutlery1.pick_up(personal_node).await;
-            match response1 {
-                Response::Success => self.data.lock().unwrap().left_hand = Some(cutlery1),
-                _ => {
-                    return Response::Failure(
-                        "Couldn't pick up cutlery during initializing!".to_string(),
-                    )
-                }
-            }
-
-            println!("grabbed second cutlery...");
-        } else {
-            let visitors = self.data.lock().unwrap().restaurant.phillosophers.len() - 1;
-            //id is even and the last id -> one cutlery is unused and needs to be picked up
-            if id == visitors {
-                let mut cutlery1 = self.data.lock().unwrap().restaurant.cutlery[id].clone();
-                let response1 = cutlery1.pick_up(personal_node).await;
-                match response1 {
-                    Response::Success => self.data.lock().unwrap().left_hand = Some(cutlery1),
+        self.data.lock().unwrap().right_neighbor = Neighbor {
+            neighbor: buf.0.clone(),
+            request: None,
+        };
+        self.data.lock().unwrap().left_neighbor = Neighbor {
+            neighbor: buf.1.clone(),
+            request: None,
+        };
+        println!(
+            "neighbours saved as: right: {:?}, left: {:?}",
+            buf.0.clone(),
+            buf.1.clone()
+        );
+        // save received cutleries
+        match buf.2 {
+            Some(mut cutlery) => {
+                let response = cutlery.pick_up(personal_node.clone()).await;
+                match response {
+                    Response::Success => self.data.lock().unwrap().right_hand = Some(cutlery),
                     _ => {
                         return Response::Failure(
                             "Couldn't pick up cutlery during initializing!".to_string(),
                         )
                     }
                 }
-                println!("grabbed leftover cutlery...");
+                println!("grabbed first cutlery...");
             }
+            None => {}
         }
-        /*
-        if id < (self.data.lock().unwrap().restaurant.phillosophers.len() - 1) {
-            let mut cutlery1 = self.data.lock().unwrap().restaurant.cutlery[id].clone();
-            let response1 = cutlery1.pick_up(personal_node.clone()).await;
-            match response1 {
-                Response::Success => self.data.lock().unwrap().left_hand = Some(cutlery1),
-                _ => {
-                    return Response::Failure(
-                        "Couldn't pick up cutlery during initializing!".to_string(),
-                    )
+        match buf.3 {
+            Some(mut cutlery) => {
+                let response = cutlery.pick_up(personal_node.clone()).await;
+                match response {
+                    Response::Success => self.data.lock().unwrap().left_hand = Some(cutlery),
+                    _ => {
+                        return Response::Failure(
+                            "Couldn't pick up cutlery during initializing!".to_string(),
+                        )
+                    }
                 }
+                println!("grabbed second cutlery...");
             }
-            println!("grabbed first cutlery...");
+            None => {}
         }
 
-        if id == 0 {
-            let last_id = self.data.lock().unwrap().restaurant.cutlery.len() - 1;
-            let mut cutlery2 = self.data.lock().unwrap().restaurant.cutlery[last_id].clone();
-            let response2 = cutlery2.pick_up(personal_node).await;
-            match response2 {
-                Response::Success => self.data.lock().unwrap().right_hand = Some(cutlery2),
-                _ => {
-                    return Response::Failure(
-                        "Couldn't pick up cutlery during initializing!".to_string(),
-                    )
-                }
-            }
-            println!("grabbed second cutlery...",);
-        }
-         */
         println!("done grabbing cutlery!");
         //start Philosopher main logic loop
         self.set_state(States::PhilosopherThinking).await;

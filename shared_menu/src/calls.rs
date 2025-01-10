@@ -27,7 +27,7 @@ pub enum Response {
 pub enum Commands {
     Register(Vec<u8>), // Register Nodes with the network, e.g. waiter
     Info,              // Request info about a node, e.g. waiter
-    Initialize(Vec<u8>, usize),
+    Initialize((Node, Node, Option<Node>, Option<Node>), usize),
     CleanCutlery(Node), // Cleans Cutlery
     UseCutlery(Node),   // Makes Cutlery dirty by being used to eat
     IsDirty,
@@ -86,7 +86,11 @@ pub trait Calls {
         Response::NotFound
     }
     // seats every philosopher
-    async fn initialise(&mut self, _buf: Vec<u8>, _id: usize) -> Response {
+    async fn initialise(
+        &mut self,
+        _buf: (Node, Node, Option<Node>, Option<Node>),
+        _id: usize,
+    ) -> Response {
         Response::NotFound
     }
     /// Cleans the cutlery, should be done by philosophers before passing them to someone else
@@ -161,7 +165,7 @@ pub trait Calls {
         &mut self,
         stream: &mut TcpStream,
     ) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
-       // println!("Receiving bytes from stream {:?}", stream.peer_addr());
+        // println!("Receiving bytes from stream {:?}", stream.peer_addr());
 
         let mut buf = vec![0; COMMAND_LEN];
         let n = stream.read_exact(&mut buf).await;

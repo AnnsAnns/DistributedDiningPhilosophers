@@ -65,7 +65,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
                 && svc_clone.visitors == svc_clone.restaurant.lock().unwrap().cutlery.len()
             {
                 *svc_clone.fully_booked.lock().unwrap() = true;
-                svc_clone.initialise(vec![0], 0).await;
+                let node = Node {
+                    username: "dummy".to_string(),
+                    ip: "bad".to_string(),
+                    port: 0,
+                    of_type: RegisterType::Waiter,
+                    state: States::Dead,
+                };
+                svc_clone
+                    .initialise((node.clone(), node, None, None), 0)
+                    .await;
             };
         });
     }
@@ -118,24 +127,78 @@ impl Calls for Svc {
         Response::Return(restaurant_bytes)
     }
 
-    async fn initialise(&mut self, _buf: Vec<u8>, _id: usize) -> Response {
+    async fn initialise(
+        &mut self,
+        _buf: (Node, Node, Option<Node>, Option<Node>),
+        _id: usize,
+    ) -> Response {
         println!("START INITIALIZING");
         {
+            let last_id = self.visitors - 1;
             let restaurant = self.restaurant.clone();
-            let restaurant = restaurant.lock().unwrap();
-            let restaurant_bytes = restaurant.to_bytes();
+            let restaurant = restaurant.lock().unwrap().clone();
+            let mut first_phil = restaurant.phillosophers[0].clone();
+
+            first_phil
+                .initialise(
+                    (
+                        restaurant.phillosophers[last_id].clone(),
+                        restaurant.phillosophers[1].clone(),
+                        None,
+                        None,
+                    ),
+                    0,
+                )
+                .await;
             let phillosophers = restaurant.phillosophers.clone();
-            for i in 0..(self.visitors - 1) {
+
+            for i in 1..(last_id) {
                 let mut phil = phillosophers[i].clone();
-                let info = restaurant_bytes.clone();
+
+                let mut left_cutl = None;
+                let mut right_cutl = None;
+                if i % 2 != 0 {
+                    right_cutl = Some(restaurant.cutlery[i - 1].clone());
+                    left_cutl = Some(restaurant.cutlery[i].clone());
+                }
+                let philos = phillosophers.clone();
                 tokio::task::spawn(async move {
-                    phil.initialise(info, i).await;
+                    phil.initialise(
+                        (
+                            philos[i - 1].clone(),
+                            philos[i + 1].clone(),
+                            right_cutl,
+                            left_cutl,
+                        ),
+                        i,
+                    )
+                    .await;
                 });
             }
+            let phillosophers = restaurant.phillosophers.clone();
+            let mut last_phil = phillosophers[last_id].clone();
+
+            let left;
+            let right;
+            if last_id % 2 == 0 {
+                right = None;
+                left = Some(restaurant.cutlery[last_id].clone());
+            } else {
+                right = Some(restaurant.cutlery[last_id - 1].clone());
+                left = Some(restaurant.cutlery[last_id].clone());
+            }
+            last_phil
+                .initialise(
+                    (
+                        phillosophers[last_id - 1].clone(),
+                        phillosophers[0].clone(),
+                        right,
+                        left,
+                    ),
+                    self.visitors - 1,
+                )
+                .await;
         }
-        let mut last_one = self.restaurant.lock().unwrap().phillosophers[self.visitors - 1].clone();
-        let last_info = self.restaurant.lock().unwrap().to_bytes();
-        last_one.initialise(last_info, self.visitors - 1).await;
         println!("DONE INITIALIZING");
         Response::Success
     }
