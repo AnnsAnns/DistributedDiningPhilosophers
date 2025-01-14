@@ -21,49 +21,38 @@ impl Calls for Svc {
     }
 
     async fn initialise(&mut self, seat: Seat) -> Response {
-        //@TODO: Continue here
-        let last_id;
-        // save received restaurant data
-        {
-            let mut data = self.data.lock().unwrap();
-            let restaurant = Restaurant::from_bytes(buf);
-            data.restaurant = restaurant;
-            last_id = data.restaurant.phillosophers.len() - 1;
-        }
-
+        let id = seat.get_own_id() as usize;
         self.data.lock().unwrap().id = id;
         let personal_node = self.data.lock().unwrap().public_data.clone();
-        let mut left_id = id + 1;
-        let mut right_id = id;
         // save seat neighbours to variables
         {
-            let philosophers = self.data.lock().unwrap().restaurant.phillosophers.clone();
-            if left_id > last_id {
-                left_id = 0
-            }
-            if right_id == 0 {
-                right_id = last_id
-            } else {
-                right_id -= 1;
-            }
             self.data.lock().unwrap().right_neighbor = Neighbor {
-                neighbor: philosophers[right_id].clone(),
+                neighbor: seat.get_philosopher_after(),
                 request: None,
             };
             self.data.lock().unwrap().left_neighbor = Neighbor {
-                neighbor: philosophers[left_id].clone(),
+                neighbor: seat.get_philosopher_before(),
                 request: None,
             };
             println!(
                 "neighbours saved as: left: {:?}, right: {:?}",
-                philosophers[left_id].clone(),
-                philosophers[right_id].clone()
+                seat.get_philosopher_before(),
+                seat.get_philosopher_after()
+            );
+
+
+            self.data.lock().unwrap().left_cutlery = seat.get_cutlery_before();
+            self.data.lock().unwrap().right_cutlery = seat.get_cutlery_after();
+            println!(
+                "cutlery saved as: left: {:?}, right: {:?}",
+                seat.get_cutlery_before(),
+                seat.get_cutlery_after()
             );
         }
         // pick up cutlery in acyclic pattern
         println!("id: {}", id);
         if id % 2 != 0 {
-            let mut cutlery2 = self.data.lock().unwrap().restaurant.cutlery[id - 1].clone();
+            let mut cutlery2 = self.data.lock().unwrap().left_cutlery.clone();
             let response2 = cutlery2.pick_up(personal_node.clone()).await;
             match response2 {
                 Response::Success => self.data.lock().unwrap().right_hand = Some(cutlery2),
@@ -75,7 +64,7 @@ impl Calls for Svc {
             }
             println!("grabbed first cutlery...");
 
-            let mut cutlery1 = self.data.lock().unwrap().restaurant.cutlery[id].clone();
+            let mut cutlery1 = self.data.lock().unwrap().right_cutlery.clone();
             let response1 = cutlery1.pick_up(personal_node).await;
             match response1 {
                 Response::Success => self.data.lock().unwrap().left_hand = Some(cutlery1),

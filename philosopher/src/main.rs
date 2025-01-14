@@ -1,4 +1,5 @@
 use calls::{Calls, Response};
+use seat::Seat;
 use core::str;
 use node::{Node, RegisterType};
 use rand::{self, Rng};
@@ -29,8 +30,9 @@ struct Philosopher {
     pub left_hand: Option<Node>,
     pub right_neighbor: Neighbor,
     pub left_neighbor: Neighbor,
+    pub left_cutlery: Node,
+    pub right_cutlery: Node,
     pub id: usize,
-    pub restaurant: Restaurant,
     pub waiter: Node,
 }
 
@@ -54,6 +56,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
 
     let listener = TcpListener::bind(addr.clone()).await?;
     println!("Listening on {} as {}", addr, username);
+
+    let waiter =  Node {
+        username: "waiter".to_string(),
+        ip: waiter_ip.clone(),
+        port: waiter_port.parse().unwrap(),
+        of_type: RegisterType::Waiter,
+        state: States::WaiterActive,
+    };
 
     let data = Philosopher {
         public_data: Node {
@@ -85,15 +95,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
             },
             request: None,
         },
+        left_cutlery: waiter.clone(),
+        right_cutlery: waiter.clone(),
         id: 0,
-        restaurant: Restaurant::default(),
-        waiter: Node {
-            username: "waiter".to_string(),
-            ip: waiter_ip.clone(),
-            port: waiter_port.parse().unwrap(),
-            of_type: RegisterType::Waiter,
-            state: States::WaiterActive,
-        },
+        waiter,
     };
 
     let svc = Svc {

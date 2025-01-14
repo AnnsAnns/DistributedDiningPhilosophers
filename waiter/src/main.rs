@@ -173,9 +173,11 @@ impl Svc {
                 restaurant.phillosophers[id_after].clone(),
                 restaurant.cutlery[i].clone(),
                 restaurant.cutlery[id_after].clone(),
+                phillosophers.len() as u64,
+                restaurant.cutlery.len() as u64,
             );
 
-            phil.initialise(seat);
+            phil.clone().initialise(seat).await;
         }
     }
 
