@@ -38,6 +38,7 @@ pub enum Commands {
     SetState(States),
     GetState,
     InformStateUpdate(Vec<u8>), // Inform about the state of the node including full node data
+    ReportStateTime(States, u64), // Report the time a state was active
 }
 
 /// Trait for a node that can be called
@@ -79,6 +80,13 @@ pub trait Calls {
     /// The buffer contains the serialized node to be registered
     async fn register(&mut self, _buf: Vec<u8>) -> Response {
         Response::NotFound
+    }
+
+    /// Report the time a state was active
+    /// This is used for statistics
+    async fn report_state_time(&mut self, state: States, time: u64) -> Response {
+        println!("Reporting state time: {:?} for {}ms", state, time);
+        self.get_waiter().await.report_state_time(state, time).await
     }
 
     /// Send info about itself to a node
@@ -144,6 +152,7 @@ pub trait Calls {
             Commands::SetState(state) => self.set_state(state).await,
             Commands::GetState => self.get_state().await,
             Commands::InformStateUpdate(buf) => self.inform_state_update(buf).await,
+            Commands::ReportStateTime(state, time) => self.report_state_time(state, time).await,
         }
     }
 

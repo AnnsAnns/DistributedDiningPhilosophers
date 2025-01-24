@@ -2,8 +2,6 @@ import { useState, useEffect } from "react";
 import "./App.css";
 import "tailwindcss/tailwind.css";
 
-const DEV_MODE = false;
-
 interface Philosopher {
   username: string;
   ip: string;
@@ -67,6 +65,7 @@ function App() {
 
         setPrevData(data);
         setData(parsed_response);
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       } catch (_) {
         console.error("Failed to fetch data");
       }

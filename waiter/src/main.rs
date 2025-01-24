@@ -43,6 +43,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
             phillosophers: Vec::new(),
             cutlery: Vec::new(),
             state_stats: HashMap::new(),
+            state_times: HashMap::new(),
         })),
         visitors,
         state: States::WaiterActive,
@@ -247,6 +248,13 @@ impl Calls for Svc {
             _ => println!("Unknown node type!"),
         }
 
+        Response::Success
+    }
+
+    async fn report_state_time(&mut self, state: States, time: u64) -> Response {
+        let mut restaurant = self.restaurant.lock().unwrap();
+        let count = restaurant.state_times.entry(state).or_insert(0);
+        *count += time;
         Response::Success
     }
 }

@@ -1,4 +1,5 @@
 use calls::{Calls, Response};
+use chrono::Utc;
 use node::Node;
 use restaurant::Restaurant;
 use states::States;
@@ -206,13 +207,15 @@ impl Calls for Svc {
         Response::Return(self.data.lock().unwrap().public_data.state.to_bytes())
     }
 
-    async fn set_state(&mut self, _state: States) -> Response {
-        self.data.lock().unwrap().public_data.state = _state;
+    async fn set_state(&mut self, state: States) -> Response {
+        self.data.lock().unwrap().public_data.state = state.clone();
+        let time_in_state = Utc::now().time() - self.data.lock().unwrap().time_since_last_state;
 
         // Inform the waiter about the state change
         let own_data = self.data.lock().unwrap().public_data.to_bytes();
         let mut waiter = self.get_waiter().await;
-        waiter.inform_state_update(own_data).await
+        waiter.inform_state_update(own_data).await;
+        waiter.report_state_time(state, time_in_state.num_milliseconds() as u64).await
     }
 
     async fn inform_state_update(&mut self, _buf: Vec<u8>) -> Response {

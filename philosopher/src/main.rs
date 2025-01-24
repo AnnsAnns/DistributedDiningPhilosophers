@@ -1,4 +1,5 @@
 use calls::{Calls, Response};
+use chrono::{NaiveTime, Utc};
 use core::str;
 use node::{Node, RegisterType};
 use rand::{self, Rng};
@@ -32,6 +33,7 @@ struct Philosopher {
     pub id: usize,
     pub restaurant: Restaurant,
     pub waiter: Node,
+    pub time_since_last_state: NaiveTime,
 }
 
 #[tokio::main]
@@ -63,6 +65,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
             of_type: RegisterType::Philosopher,
             state: States::Initializing,
         },
+        time_since_last_state: Utc::now().time(),
         right_hand: None,
         left_hand: None,
         right_neighbor: Neighbor {

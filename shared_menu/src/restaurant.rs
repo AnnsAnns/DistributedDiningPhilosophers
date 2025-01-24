@@ -8,6 +8,7 @@ pub struct Restaurant {
     pub phillosophers: Vec<Node>,
     pub cutlery: Vec<Node>,
     pub state_stats: HashMap<States, usize>,
+    pub state_times: HashMap<States, u64>,
 }
 
 impl Restaurant {
