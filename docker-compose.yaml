@@ -5,7 +5,6 @@ services:
       - waiter
     build: .
     environment:
-      IP: "cutlery"
       WAITER_IP: "waiter"
       WAITER_PORT: "3000"
     entrypoint: [ "./cutlery" ]
@@ -14,7 +13,7 @@ services:
       - free_wifi
     deploy:
       mode: replicated
-      replicas: 15
+      replicas: 3
       endpoint_mode: dnsrr
 
   philosopher:
@@ -22,7 +21,6 @@ services:
       - waiter
     build: .
     environment:
-      IP: "philosopher"
       WAITER_IP: "waiter"
       WAITER_PORT: "3000"
     entrypoint: [ "./philosopher" ]
@@ -31,7 +29,7 @@ services:
       - free_wifi
     deploy:
       mode: replicated
-      replicas: 15
+      replicas: 3
       endpoint_mode: dnsrr
 
   waiter:
@@ -41,7 +39,7 @@ services:
       WAITER_IP: "172.27.0.2"
       WAITER_PORT: "3000"
       WAITER_HTTP_PORT: "3001"
-      VISITORS: "15"
+      VISITORS: "3"
     ports:
       - "3000:3000"
       - "3001:3001"
@@ -57,4 +55,4 @@ networks:
     driver: bridge
     ipam:
       config:
-        - subnet: 172.27.0.0/16
+        - subnet: 172.27.0.0/24
