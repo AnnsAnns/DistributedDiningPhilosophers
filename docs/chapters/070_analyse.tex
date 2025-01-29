@@ -1,18 +1,43 @@
 \section{Analyse}
 
+\subsection{Performance}
+
+Der Durchschnitt bei 50 Philosophen:
+
+\begin{verbatim}
+CONTAINER ID   NAME                 CPU %     MEM USAGE / LIMIT     MEM %     NET I/O           BLOCK I/O   PIDS
+dcd773919aad   vsp-cutlery-3        0.00%     1.641MiB / 30.51GiB   0.01%     145kB / 127kB     0B / 0B     14
+898fefa009b1   waiter               0.00%     2.789MiB / 30.51GiB   0.01%     4.42MB / 4.33MB   0B / 0B     13
+faff8eb1e008   vsp-philosopher-19   0.00%     1.824MiB / 30.51GiB   0.01%     206kB / 188kB     0B / 0B     14
+\end{verbatim}
+
+\subsection{Effizienz}
+
 Feste Konstanten:
 \begin{itemize}
-    \item Anzahl an Philosophen: 15
     \item Zeit Thinking: 2.00s
-    \item Zeit Eating: 1.18s
+    \item Zeit Eating: 2.00s
+    \item Zeit Sleeping pro Versuch: 0.01s
+\end{itemize}
 
 \begin{table}[h!]
 \centering
-\begin{tabular}{|c|c|c|c|}
+\begin{tabular}{|c|c|c|c|c|c|c|}
 \hline
-Anzahl an Philosophen & Zeit Thinking & Zeit Eating & Zeit Hungry \\ \hline
-15 & 2.00s & 1.18s & 2.00s \\ \hline
+Anzahl & Eating Avg & Eating Max & Hungry Avg & Hungry Max & Thinking Avg & Thinking Max \\
+\hline
+4 & 2.01 & 2.04 & 0.13 & 2.14 & 1.99 & 2.00 \\
+5 & 2.01 & 2.04 & 1.18 & 4.17 & 1.98 & 2.00 \\
+10 & 2.02 & 2.04 & 0.14 & 2.15 & 1.98 & 2.00 \\
+15 & 2.02 & 2.04 & 0.43 & 4.19 & 1.98 & 2.00 \\
+30 & 2.03 & 2.03 & 0.17 & 2.25 & 1.98 & 2.03 \\
+31 & 2.02 & 2.05 & 0.30 & 4.18 & 1.97 & 2.02 \\
+50 & 2.02 & 2.04 & 0.17 & 2.25 & 1.99 & 2.04 \\
+51 & 2.04 & 2.06 & 0.26 & 4.29 & 1.97 & 2.04 \\
+100 & 2.09 & 2.11 & 0.21 & 2.36 & 1.96 & 2.08 \\
+101 & 2.06 & 2.07 & 0.22 & 4.40 & 1.97 & 2.07 \\
+\hline
 \end{tabular}
-\caption{Analyse der Philosophen}
-\label{tab:analyse_philosophen}
+\caption{Performance Daten}
+\label{tab:performance_data}
 \end{table}
