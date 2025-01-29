@@ -1,20 +1,20 @@
 \section{Entwurf}
 
 \begin{figure}[H]
-\centering
-\includegraphics[width=0.7\textwidth]{images/setup.png}
-\caption{Das Setup der Container}
-\label{fig:setup}
+    \centering
+    \includegraphics[width=0.7\textwidth]{images/setup.png}
+    \caption{Das Setup der Container}
+    \label{fig:setup}
 \end{figure}
 
 Zur Kommunikation zwischen den verschiedenen Containern nutzen wir ein zentrales Melderegister namens Waiter.
-In diesem müssen sich Cutlery und Philosopher registrieren, um miteinander kommunizieren zu können. 
+In diesem müssen sich Cutlery und Philosopher registrieren, um miteinander kommunizieren zu können.
 Der Waiter ist ein zentraler Bestandteil des Systems und wird von allen Containern benötigt, um sich gegenseitig zu finden.
-Die Kommunikation zwischen den Containern erfolgt über das Publish-Subscribe-Prinzip, d.h. dass man nach der Registrierung beim Waiter über jeden anderen registrierten Container informiert wird.
+Die Kommunikation zwischen den Containern erfolgt über das Publish-Subscribe-Prinzip, d.h. dass man nach der Registrierung beim Waiter über seine angrenzenden registrierten Container informiert wird.
 
 \begin{figure}[H]
-\centering
-\includegraphics[width=0.7\textwidth]{images/waiterjob.png}
-\caption{Das Publish Subscribe Prinzip vom Waiter}
-\label{fig:setup}
+    \centering
+    \includegraphics[width=0.7\textwidth]{images/waiterjob.png}
+    \caption{Das Publish Subscribe Prinzip vom Waiter}
+    \label{fig:setup}
 \end{figure}
