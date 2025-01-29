@@ -44,6 +44,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
             cutlery: Vec::new(),
             state_stats: HashMap::new(),
             state_times: HashMap::new(),
+            max_state_time: HashMap::new(),
+            min_state_time: HashMap::new(),
         })),
         visitors,
         state: States::WaiterActive,
@@ -252,7 +254,15 @@ impl Calls for Svc {
     }
 
     async fn report_state_time(&mut self, state: States, time: u64) -> Response {
-        self.restaurant.lock().unwrap().add_state_time(state, time);
+        // we want to report the state we came from for the statistics to be correct
+        let state_came_from = match state {
+            States::PhilosopherThinking => States::PhilosopherEating,
+            States::PhilosopherEating => States::PhilosopherHungry,
+            States::PhilosopherHungry => States::PhilosopherThinking,
+            _ => state,
+        };
+
+        self.restaurant.lock().unwrap().add_state_time(state_came_from, time);
         Response::Success
     }
 }
