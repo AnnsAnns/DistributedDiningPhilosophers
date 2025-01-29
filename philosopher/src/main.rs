@@ -134,6 +134,7 @@ async fn sit_at_table(mut svc: Svc) {
                 println!("state: {:?}", States::PhilosopherHungry);
             }
             States::PhilosopherHungry => {
+                sleep(Duration::from_millis(100)).await;
                 let svc_clone = svc.clone();
                 request_cutlery(svc_clone).await;
                 let mut start_eating = false;
@@ -155,7 +156,6 @@ async fn sit_at_table(mut svc: Svc) {
                 }
             }
             States::PhilosopherEating => {
-                //let rnd_sleep = rand::thread_rng().gen_range(1..=3);
                 sleep(Duration::from_secs(2)).await;
                 //pass cutleries if there are open requests
                 let right_cutlery = svc.data.lock().unwrap().right_hand.clone();
@@ -189,7 +189,6 @@ async fn sit_at_table(mut svc: Svc) {
             }
             _ => (),
         }
-        sleep(Duration::from_secs(3)).await;
     }
 }
 

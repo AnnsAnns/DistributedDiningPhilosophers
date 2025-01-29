@@ -84,9 +84,8 @@ pub trait Calls {
 
     /// Report the time a state was active
     /// This is used for statistics
-    async fn report_state_time(&mut self, state: States, time: u64) -> Response {
-        println!("Reporting state time: {:?} for {}ms", state, time);
-        self.get_waiter().await.report_state_time(state, time).await
+    async fn report_state_time(&mut self, _state: States, _time: u64) -> Response {
+        Response::NotFound
     }
 
     /// Send info about itself to a node

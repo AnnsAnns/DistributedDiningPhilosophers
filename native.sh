@@ -15,7 +15,7 @@ trap cleanup SIGINT SIGTERM
 export WAITER_IP="127.0.0.1"
 export WAITER_PORT="3000"
 export WAITER_HTTP_PORT="3001"
-export VISITORS="15"
+export VISITORS="5"
 ./target/debug/waiter &
 
 # Wait for 3 seconds
@@ -23,14 +23,14 @@ echo "Waiting for waiter service to start..."
 sleep 3
 
 # Start cutlery service
-for i in {1..15}; do
+for i in {1..5}; do
     export WAITER_IP="127.0.0.1"
     export WAITER_PORT="3000"
     ./target/debug/cutlery &
 done
 
 # Start philosopher service
-for i in {1..15}; do
+for i in {1..5}; do
     export WAITER_IP="127.0.0.1"
     export WAITER_PORT="3000"
     ./target/debug/philosopher &

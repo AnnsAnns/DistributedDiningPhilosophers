@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import "./App.css";
+import CanvasJS from '@canvasjs/charts';
 import "tailwindcss/tailwind.css";
 
 interface Philosopher {
@@ -22,11 +23,13 @@ interface Response {
   phillosophers: Philosopher[];
   cutlery: Cutlery[];
   state_stats: Record<string, number>;
+  state_times: Record<string, number>;
 }
 
 function App() {
   const [data, setData] = useState<Response | null>(null);
   const [prevData, setPrevData] = useState<Response | null>(null);
+  const [pastStateData, setPastStateData] = useState<Record<string, number[]>>({});
   const stateToColor = (state: string) => {
     switch (state) {
       case "PhilosopherHungry":
@@ -63,11 +66,23 @@ function App() {
           return;
         }
 
+        // Calculate the average time spent in each state and push it to the pastStateData
+        Object.entries(parsed_response.state_times).forEach(([key, value]) => {
+          setPastStateData((prev) => {
+            const newStateData = {...prev};
+            if (!newStateData[key]) {
+              newStateData[key] = [];
+            }
+            newStateData[key].push(value);
+            return newStateData;
+          });
+        });
+
         setPrevData(data);
         setData(parsed_response);
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      } catch (_) {
-        console.error("Failed to fetch data");
+      } catch (err) {
+        console.error("Failed to fetch data: ", err);
       }
     };
 
@@ -80,10 +95,14 @@ function App() {
     return JSON.stringify(prev) !== JSON.stringify(current);
   };
 
+
   return (
     <div className="w-full m-8 ml-16 flex flex-col justify-center items-center">
       <h1 className="text-4xl font-bold mb-4">Dining Philosophers</h1>
       <h2 className="text-2xl font-bold mb-4">Stats:</h2>
+      <div className="flex flex-row">
+
+      </div>
       <div className="mb-4">
         {data && (
           <div>
@@ -96,7 +115,7 @@ function App() {
                   key={key}
                   className={`mb-2 ${hasChanged ? "bg-yellow-200" : ""}`}
                 >
-                  <strong>{key}:</strong> {value}
+                  <strong>{key}:</strong> {value} (Avg: {(data.state_times[key]/value/1000).toFixed(2)}s)
                 </div>
               );
             })}

@@ -91,6 +91,11 @@ impl Calls for Node {
         panic!("Waiter cannot be called on a node that is not yourself");
     }
 
+    async fn report_state_time(&mut self, _state: States, _time: u64) -> Response {
+        self.puppet_action(Commands::ReportStateTime(_state, _time))
+            .await
+    }
+
     async fn get_state(&mut self) -> Response {
         self.puppet_action(Commands::GetState).await
     }

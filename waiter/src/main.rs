@@ -252,9 +252,7 @@ impl Calls for Svc {
     }
 
     async fn report_state_time(&mut self, state: States, time: u64) -> Response {
-        let mut restaurant = self.restaurant.lock().unwrap();
-        let count = restaurant.state_times.entry(state).or_insert(0);
-        *count += time;
+        self.restaurant.lock().unwrap().add_state_time(state, time);
         Response::Success
     }
 }

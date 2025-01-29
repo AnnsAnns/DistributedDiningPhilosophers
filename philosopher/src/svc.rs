@@ -84,6 +84,7 @@ impl Calls for Svc {
 
         println!("done grabbing cutlery!");
         //start Philosopher main logic loop
+        self.data.lock().unwrap().time_since_last_state = Utc::now().time() - chrono::Duration::seconds(2);
         self.set_state(States::PhilosopherThinking).await;
         println!("state: {:?}", States::PhilosopherThinking);
         let svc_clone = self.clone();
@@ -208,14 +209,24 @@ impl Calls for Svc {
     }
 
     async fn set_state(&mut self, state: States) -> Response {
+        if state == self.data.lock().unwrap().public_data.state {
+            return Response::Success;
+        }
+
         self.data.lock().unwrap().public_data.state = state.clone();
         let time_in_state = Utc::now().time() - self.data.lock().unwrap().time_since_last_state;
+        self.data.lock().unwrap().time_since_last_state = Utc::now().time();
 
         // Inform the waiter about the state change
         let own_data = self.data.lock().unwrap().public_data.to_bytes();
         let mut waiter = self.get_waiter().await;
         waiter.inform_state_update(own_data).await;
-        waiter.report_state_time(state, time_in_state.num_milliseconds() as u64).await
+        self.report_state_time(state, time_in_state.num_milliseconds() as u64).await
+    }
+
+    async fn report_state_time(&mut self, state: States, time: u64) -> Response {
+        println!("Reporting state time: {:?} for {}ms", state, time);
+        self.get_waiter().await.report_state_time(state, time).await
     }
 
     async fn inform_state_update(&mut self, _buf: Vec<u8>) -> Response {

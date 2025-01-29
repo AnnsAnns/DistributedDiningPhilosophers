@@ -22,6 +22,13 @@ impl Restaurant {
         bytes
     }
 
+    pub fn add_state_time(&mut self, state: States, time: u64) {
+        println!("Adding time to state: {:?}, time: {}", state, time);
+        let previous_time = self.state_times.get(&state).unwrap_or(&0);
+        let new_time = previous_time + time;
+        self.state_times.insert(state, new_time);
+    }
+
     pub fn add_state(&mut self, state: States) {
         // Serialization is not working properly when the enum value contains its own value
         let state_to_add = {
