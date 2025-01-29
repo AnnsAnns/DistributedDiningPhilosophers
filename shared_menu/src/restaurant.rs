@@ -9,6 +9,8 @@ pub struct Restaurant {
     pub cutlery: Vec<Node>,
     pub state_stats: HashMap<States, usize>,
     pub state_times: HashMap<States, u64>,
+    pub max_state_time: HashMap<States, u64>,
+    pub min_state_time: HashMap<States, u64>,
 }
 
 impl Restaurant {
@@ -26,7 +28,17 @@ impl Restaurant {
         println!("Adding time to state: {:?}, time: {}", state, time);
         let previous_time = self.state_times.get(&state).unwrap_or(&0);
         let new_time = previous_time + time;
-        self.state_times.insert(state, new_time);
+        self.state_times.insert(state.clone(), new_time);
+
+        let max_time = self.max_state_time.entry(state.clone()).or_insert(0);
+        if time > *max_time {
+            *max_time = time;
+        }
+
+        let min_time = self.min_state_time.entry(state.clone()).or_insert(0);
+        if time < *min_time {
+            *min_time = time;
+        }
     }
 
     pub fn add_state(&mut self, state: States) {

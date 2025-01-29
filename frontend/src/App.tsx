@@ -24,6 +24,8 @@ interface Response {
   cutlery: Cutlery[];
   state_stats: Record<string, number>;
   state_times: Record<string, number>;
+  max_state_time: Record<string, number>;
+  min_state_time: Record<string, number>;
 }
 
 function App() {
@@ -115,7 +117,7 @@ function App() {
                   key={key}
                   className={`mb-2 ${hasChanged ? "bg-yellow-200" : ""}`}
                 >
-                  <strong>{key}:</strong> {value} (Avg: {(data.state_times[key]/value/1000).toFixed(2)}s)
+                  <strong>{key}:</strong> {value} (Avg: {(data.state_times[key]/value/1000).toFixed(2)}s) (Min: {(data.min_state_time[key]/1000).toFixed(2)}s) (Max: {(data.max_state_time[key]/1000).toFixed(2)}s)
                 </div>
               );
             })}

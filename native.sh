@@ -12,7 +12,7 @@ cleanup() {
 trap cleanup SIGINT SIGTERM
 
 # Start waiter service
-export WAITER_IP="127.0.0.1"
+export WAITER_IP="100.107.172.2"
 export WAITER_PORT="3000"
 export WAITER_HTTP_PORT="3001"
 export VISITORS="5"
@@ -24,14 +24,14 @@ sleep 3
 
 # Start cutlery service
 for i in {1..5}; do
-    export WAITER_IP="127.0.0.1"
+    export WAITER_IP="100.88.10.116"
     export WAITER_PORT="3000"
     ./target/debug/cutlery &
 done
 
 # Start philosopher service
 for i in {1..5}; do
-    export WAITER_IP="127.0.0.1"
+    export WAITER_IP="100.88.10.116"
     export WAITER_PORT="3000"
     ./target/debug/philosopher &
 done
