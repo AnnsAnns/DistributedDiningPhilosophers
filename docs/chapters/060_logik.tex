@@ -36,3 +36,20 @@ und aufgrund der gleichen Anzahl von Philosophen und Bestecken ein anderer Philo
     \label{fig:zyklische_abhaengigkeit}
 \end{figure}
 \noindent Hier ein Beispiel dazu: 0 hat gegessen, die Pfeile zeigen die Verteilung der Bestecke was darin resultiert das sowohl bei gerader als auch ungerader Anzahl Philosoph einer zwei Bestecke haben muss.
+
+\section{Frontend}
+
+Für die Visualisierung haben wir ein Frontend in Vite + Typescript geschrieben. 
+
+Der Waiter hört auf Port "3001" auf Anfragen und gibt Informationen über die Aktivitäten der Philosophen und Bestecke zurück.
+
+Außerdem sammelt der Waiter Statistikdaten und gibt diese zurück.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.7\textwidth]{images/frontend.png}
+    \caption{Frontend}
+    \label{fig:frontend}
+\end{figure}
+
+Das Frontend zeigt durch diese Daten ebenfall Statusänderunge signalisiert durch Farbänderungen der Philosophen und Bestecke.
