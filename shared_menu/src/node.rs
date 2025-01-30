@@ -47,7 +47,7 @@ impl Node {
         format!("{}:{}", self.ip, self.port)
     }
 
-    async fn puppet_action(&mut self, command: Commands) -> Response {
+    pub async fn puppet_action(&mut self, command: Commands) -> Response {
         let mut stream = TcpStream::connect(self.get_address()).await.unwrap();
         // println!("Sending command to: {}", self.get_address());
         let result = self.send_command_to(&mut stream, command).await;
