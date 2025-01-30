@@ -85,3 +85,32 @@ Anzahl & Eating Avg & Eating Max & Hungry Avg & Hungry Max & Thinking Avg & Thin
 \caption{Statistiken bei ungerader Anzahl an Philosophen}
 \label{fig:ungerade_stats}
 \end{figure}
+
+\section{Fazit}
+
+Wir sind mit dem Ergebnis zufrieden, da wir die Anforderungen erfüllt haben und das System effizient und performant ist.
+
+Rust hat sich als eine sehr gute Wahl für das Projekt erwiesen. Jeder Container hat eine sehr niedrige Auslastung und die Kommunikation zwischen den Containern ist sehr effizient 
+auf Grund der asynchronen Kommunikation.
+
+Eine der besten Designentscheidungen war es ein "shared_menu" für die verschiedenen Anwendungen zu verwenden,
+diese geteilte Bibiliothek erlaubt relativ wenig Code Duplikation und eine einfache Wartung, was sich vorallem bei der Implementierung des RPC Systems bemerkbar gemacht hat.
+
+Dadurch ist z.B. Cutlery unter 100 Zeilen, wovon die größte Menge an Code sehr simple Getter und Setter sind.
+
+Im Laufe des Projektes mussten wir auf Grund von frühen Designentscheidungen einige Änderungen vornehmen, die großes Refactoring benötigten.
+Unter anderem das RPC System, welches wir komplett neu geschrieben haben, um Transparenz zu gewährleisten und die Kommunikation zu vereinfachen.
+
+Ein andererer großer Fehler war, wie die Teilnehmer übertragen wurden, 
+jeder Teilnehmer hatte eine Kopie von allen anderen Teilnehmern, wodurch die Paketgröße bei vielen Teilnehmern zu groß wurde. 
+Nachdem wir nur noch die Nachbarn übertragen haben sehen wir eine deutliche Verbesserung.
+
+Unsere größte Schwachstelle ist der Waiter, dieser ist ein Single Point of Failure und kann das gesamte System zum Stillstand bringen.
+
+Falls wir dieses Projekt in der Zukunft weiterführen würden, würden wir den Waiter etwas mehr dezentralisieren. 
+
+Dazu könnte man den Waiter in mehrere Knoten aufteilen, die sich gegenseitig über ihre Nachbarn informieren
+und einen Leader wählen, der für die anfängliche Registrierung zuständig ist.
+
+Nachdem alle Philosophen und Bestecke registriert sind ist die Funktion des Waiters nur noch Logging und Statistiken sammeln, 
+was sich gut auf mehrere Knoten aufteilen lässt.
