@@ -31,3 +31,7 @@ podman_rebuild:
 
 podman_compose_build_waiter:
 	@podman-compose up --build waiter
+
+.PHONY: compile_docs
+compile_docs:
+	@pdflatex -output-directory=docs docs/RDT.tex
