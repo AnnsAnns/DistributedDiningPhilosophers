@@ -6,7 +6,7 @@ use crate::{
 };
 
 /// RegisterType is an enum that represents the type of the node that is being registered.
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq)]
 pub enum RegisterType {
     Philosopher,
     Cutlery,
@@ -14,7 +14,7 @@ pub enum RegisterType {
 }
 
 /// Node is a struct that represents a node in the network.
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq)]
 pub struct Node {
     pub username: String,
     pub ip: String,
@@ -24,6 +24,16 @@ pub struct Node {
 }
 
 impl Node {
+    pub fn test_new(username: &str) -> Self {
+        Node {
+            username: username.to_string(),
+            ip: "".to_string(),
+            port: 0,
+            of_type: RegisterType::Philosopher,
+            state: States::Initializing,
+        }
+    }
+
     pub fn from_bytes(bytes: Vec<u8>) -> Self {
         let node: Node = bincode::deserialize(&bytes).unwrap();
         node
