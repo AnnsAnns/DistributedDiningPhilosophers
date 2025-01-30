@@ -233,3 +233,65 @@ impl Calls for Svc {
         Response::Failure("Don't know how to handle this!".to_string())
     }
 }
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use calls::Response;
+    use node::Node;
+    use restaurant::Restaurant;
+    use std::sync::{Arc, Mutex};
+    use tokio::runtime::Runtime;
+
+    fn setup_svc() -> Svc {
+        let philosopher = Philosopher {
+            id: 0,
+            waiter: Node::test_new("Waiter"),
+            restaurant: Restaurant::default(),
+            public_data: Node::test_new("Philosopher"),
+            right_neighbor: Neighbor{
+                neighbor: Node::test_new("Right Neighbor"),
+                request: None,
+            },
+            left_neighbor: Neighbor{
+                neighbor: Node::test_new("Left Neighbor"),
+                request: None,
+            },
+            right_hand: None,
+            left_hand: None,
+            time_since_last_state: Utc::now().time(),
+        };
+        Svc {
+            data: Arc::new(Mutex::new(philosopher)),
+        }
+    }
+
+    #[test]
+    fn test_get_waiter() {
+        let svc = setup_svc();
+        let rt = Runtime::new().unwrap();
+        let waiter = rt.block_on(svc.get_waiter());
+        assert_eq!(waiter, svc.data.lock().unwrap().waiter);
+    }
+
+    #[test]
+    fn test_register() {
+        let mut svc = setup_svc();
+        let rt = Runtime::new().unwrap();
+        let restaurant = Restaurant::default();
+        let buf = restaurant.to_bytes();
+        let response = rt.block_on(svc.register(buf));
+        assert_eq!(response, Response::Success);
+        assert_eq!(svc.data.lock().unwrap().restaurant, restaurant);
+    }
+
+    #[test]
+    fn test_inform_state_update() {
+        let mut svc = setup_svc();
+        let rt = Runtime::new().unwrap();
+        let buf = vec![];
+        let response = rt.block_on(svc.inform_state_update(buf));
+        assert_eq!(response, Response::Failure("Don't know how to handle this!".to_string()));
+    }
+}
