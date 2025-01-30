@@ -22,3 +22,56 @@ Abstrahiert sieht das ganze für einen Philosophen oder Waiter dann so aus:
     \caption{RPC Abstrahiert}
     \label{fig:setup}
 \end{figure}
+
+\section{RPC Command Struktur}
+
+Die RPC Command Struktur definiert die verschiedenen Befehle und Antworten, die zwischen den Knoten eines Netzwerks ausgetauscht werden können. Diese Struktur ist entscheidend für die Kommunikation und Koordination innerhalb des Netzwerks. Im Folgenden werden die verschiedenen Komponenten dieser Struktur beschrieben.
+
+\subsection{Response}
+
+Die \texttt{Response} Enum repräsentiert die möglichen Antworten auf einen RPC-Aufruf. Diese Antworten können wie folgt aussehen:
+\begin{itemize}
+    \item \texttt{Success}: Der Aufruf war erfolgreich.
+    \item \texttt{Failure(String)}: Der Aufruf ist fehlgeschlagen und liefert eine Fehlermeldung.
+    \item \texttt{Return(Vec<u8>)}: Der Aufruf hat Daten zurückgegeben, die als Byte-Vektor serialisiert sind.
+    \item \texttt{NotFound}: Der angeforderte Knoten wurde nicht gefunden.
+\end{itemize}
+
+\subsection{Commands}
+
+Die \texttt{Commands} Enum definiert die verschiedenen Befehle, die an einen Knoten gesendet werden können. Diese Befehle werden als Aufrufe an den Knoten behandelt und von der Implementierung des \texttt{Calls} Traits des Knotens verarbeitet. Die Befehle umfassen:
+\begin{itemize}
+    \item \texttt{Register(Vec<u8>)}: Registriert Knoten im Netzwerk, z.B. einen Kellner.
+    \item \texttt{Info}: Fordert Informationen über einen Knoten an, z.B. einen Kellner.
+    \item \texttt{Initialize((Node, Node, Option<Node>, Option<Node>), usize)}: Initialisiert Knoten mit bestimmten Parametern.
+    \item \texttt{CleanCutlery(Node)}: Reinigt Besteck.
+    \item \texttt{UseCutlery(Node)}: Macht Besteck durch Benutzung schmutzig.
+    \item \texttt{IsDirty}: Überprüft, ob das Besteck schmutzig ist.
+    \item \texttt{ReceiveCutlery(Node, String)}: Ein Philosoph erhält ein Stück Besteck von einem anderen Philosophen.
+    \item \texttt{ReceiveRequest(Node, String)}: Ein Philosoph erhält eine Anfrage für ein Stück Besteck, das er hält.
+    \item \texttt{PickUp(Node)}: Hebt ein Stück Besteck auf.
+    \item \texttt{PutDown}: Legt ein Stück Besteck ab.
+    \item \texttt{SetState(States)}: Setzt den Zustand eines Knotens.
+    \item \texttt{GetState}: Fordert den aktuellen Zustand eines Knotens an.
+    \item \texttt{InformStateUpdate(Vec<u8>)}: Informiert über den Zustand des Knotens, einschließlich vollständiger Knotendaten.
+    \item \texttt{ReportStateTime(States, u64)}: Meldet die Zeit, in der ein Zustand aktiv war.
+\end{itemize}
+
+\section{Tests}
+
+\subsection{Testumgebung}
+
+Wir verwenden eine Mock-Implementierung des \texttt{Calls} Traits, um die verschiedenen RPC-Kommandos zu testen. Diese Mock-Implementierung simuliert die Antworten auf die RPC-Kommandos, ohne dass ein echter Netzwerkverkehr erforderlich ist.
+
+Für einige Tests simulieren wir jedoch auch den echten Netzwerkverkehr,
+ indem wir eine TCP-Verbindung zwischen zwei Knoten herstellen und die RPC-Kommandos über diese Verbindung senden.
+
+\subsection{Beispieltests}
+
+\begin{itemize}
+    \item \texttt{test\_get\_state}: Testet den \texttt{GetState}-Befehl und überprüft, ob die Antwort \texttt{Success} ist.
+    \item \texttt{test\_set\_state}: Testet den \texttt{SetState}-Befehl und überprüft, ob die Antwort \texttt{Success} ist.
+    \item \texttt{test\_handle\_request}: Testet die Verarbeitung eines \texttt{GetState}-Befehls und überprüft, ob die Antwort \texttt{Success} ist.
+    \item \texttt{test\_connection\_handler}: Testet den Verbindungs-Handler, indem eine TCP-Verbindung hergestellt und ein \texttt{GetState}-Befehl gesendet wird. Überprüft, ob die Antwort \texttt{Success} ist.
+    \item \texttt{test\_send\_command\_to}: Testet das Senden eines \texttt{GetState}-Befehls über eine TCP-Verbindung und überprüft, ob die Antwort \texttt{Success} ist.
+\end{itemize}
